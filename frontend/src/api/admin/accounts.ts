@@ -772,11 +772,58 @@ export interface OpenAIQuotaResetResult {
  windows_reset: number
 }
 
+export interface OpenAIQuotaSummaryParams {
+ projection_at?: string
+ group?: string
+ type?: string
+}
+
+export interface OpenAIQuotaRecovery {
+ account_id: number
+ account_name: string
+ account_type: string
+ reset_at: string
+ remaining_before_percent: number
+ remaining_after_percent: number
+}
+
+export interface OpenAIQuotaSummaryRow {
+ account_type: string
+ included_count: number
+ error_count: number
+ inactive_count: number
+ other_excluded_count: number
+ missing_5h_snapshot_count: number
+ missing_7d_snapshot_count: number
+ avg_5h_remaining_percent: number
+ avg_7d_remaining_percent: number
+ earliest_5h_recovery: OpenAIQuotaRecovery | null
+ earliest_7d_recovery: OpenAIQuotaRecovery | null
+}
+
+export interface OpenAIQuotaSummaryGroup {
+ group_id: number | null
+ group_name: string
+ ungrouped: boolean
+ rows: OpenAIQuotaSummaryRow[]
+}
+
+export interface OpenAIQuotaSummaryResponse {
+ projection_at: string
+ generated_at: string
+ groups: OpenAIQuotaSummaryGroup[]
+}
+
 /**
  * Query OpenAI/Codex rate-limit usage for an OAuth account.
  */
 export async function queryOpenAIQuota(id: number): Promise<OpenAIQuotaUsage> {
  const { data } = await apiClient.get<OpenAIQuotaUsage>(`/admin/openai/accounts/${id}/quota`)
+ return data
+}
+
+export async function getOpenAIQuotaSummary(params?: OpenAIQuotaSummaryParams): Promise<OpenAIQuotaSummaryResponse> {
+ const { data } = await apiClient.get<OpenAIQuotaSummaryResponse>('/admin/openai/quota-summary', { params })
  return data
 }
 
@@ -844,6 +891,7 @@ export const accountsAPI = {
  setPrivacy,
  revertProxyFallback,
  queryOpenAIQuota,
+ getOpenAIQuotaSummary,
  resetOpenAIQuota,
  createSparkShadow
 }
