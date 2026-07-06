@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"math"
 	"testing"
 	"time"
 
@@ -89,6 +91,31 @@ func TestBuildOpenAIQuotaSummary_PartialSnapshotsCountAsMissingAndFullQuota(t *t
 	require.Equal(t, 2, row.Missing7DSnapshotCount)
 	require.InDelta(t, 86.666, row.Avg5HRemainingPercent, 0.001)
 	require.InDelta(t, 90, row.Avg7DRemainingPercent, 0.001)
+}
+
+func TestBuildOpenAIQuotaSummary_NonFiniteSnapshotsCountAsMissingAndFullQuota(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	group := &Group{ID: 10, Name: "OpenAI Main", Platform: PlatformOpenAI}
+	accounts := []Account{
+		openAIQuotaSummaryTestAccountWithRawUsed(1, "nan-string", "NaN", now.Add(time.Hour), group),
+		openAIQuotaSummaryTestAccountWithRawUsed(2, "infinity-string", "Infinity", now.Add(time.Hour), group),
+		openAIQuotaSummaryTestAccountWithRawUsed(3, "nan-float", math.NaN(), now.Add(time.Hour), group),
+		openAIQuotaSummaryTestAccountWithRawUsed(4, "inf-float", math.Inf(1), now.Add(time.Hour), group),
+		openAIQuotaSummaryTestAccountWithRawUsed(5, "nan-json-number", json.Number("NaN"), now.Add(time.Hour), group),
+		openAIQuotaSummaryTestAccountWithRawUsed(6, "inf-json-number", json.Number("Infinity"), now.Add(time.Hour), group),
+	}
+
+	out := BuildOpenAIQuotaSummary(accounts, OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
+
+	row := out.Groups[0].Rows[0]
+	require.Equal(t, len(accounts), row.Missing5HSnapshotCount)
+	require.Equal(t, len(accounts), row.Missing7DSnapshotCount)
+	require.InDelta(t, 100, row.Avg5HRemainingPercent, 0.001)
+	require.InDelta(t, 100, row.Avg7DRemainingPercent, 0.001)
+	require.Nil(t, row.Earliest5HRecovery)
+	require.Nil(t, row.Earliest7DRecovery)
+	_, err := json.Marshal(out)
+	require.NoError(t, err)
 }
 
 func TestBuildOpenAIQuotaSummary_FutureProjectionResetsWindows(t *testing.T) {
@@ -202,6 +229,28 @@ func openAIQuotaSummaryTestAccount(id int64, name, accountType, status string, u
 			"codex_5h_reset_at":     reset5h.Format(time.RFC3339),
 			"codex_7d_used_percent": used7d,
 			"codex_7d_reset_at":     reset7d.Format(time.RFC3339),
+		},
+	}
+}
+
+func openAIQuotaSummaryTestAccountWithRawUsed(id int64, name string, used any, reset time.Time, groups ...*Group) Account {
+	groupIDs := make([]int64, 0, len(groups))
+	for _, group := range groups {
+		groupIDs = append(groupIDs, group.ID)
+	}
+	return Account{
+		ID:       id,
+		Name:     name,
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Groups:   groups,
+		GroupIDs: groupIDs,
+		Extra: map[string]any{
+			"codex_5h_used_percent": used,
+			"codex_5h_reset_at":     reset.Format(time.RFC3339),
+			"codex_7d_used_percent": used,
+			"codex_7d_reset_at":     reset.Format(time.RFC3339),
 		},
 	}
 }

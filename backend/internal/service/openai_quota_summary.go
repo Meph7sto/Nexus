@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -244,7 +245,8 @@ func openAIQuotaSummaryRemaining(account *Account, usedKey, resetKey string, pro
 	if !ok {
 		return 100, true
 	}
-	if !openAIQuotaSummaryUsedPercentIsParseable(rawUsed) {
+	usedPercent, ok := parseOpenAIQuotaSummaryUsedPercent(rawUsed)
+	if !ok {
 		return 100, true
 	}
 	resetAt := account.getExtraTime(resetKey)
@@ -254,7 +256,7 @@ func openAIQuotaSummaryRemaining(account *Account, usedKey, resetKey string, pro
 	if !projectionAt.Before(resetAt) {
 		return 100, false
 	}
-	return 100 - clampPercent(parseExtraFloat64(rawUsed)), false
+	return 100 - clampPercent(usedPercent), false
 }
 
 func openAIQuotaSummaryRecovery(account *Account, resetKey string, remaining float64, missing bool, projectionAt time.Time) *OpenAIQuotaRecovery {
@@ -282,18 +284,35 @@ func earlierOpenAIQuotaRecovery(current, candidate *OpenAIQuotaRecovery) *OpenAI
 	return current
 }
 
-func openAIQuotaSummaryUsedPercentIsParseable(value any) bool {
+func parseOpenAIQuotaSummaryUsedPercent(value any) (float64, bool) {
+	var (
+		percent float64
+		ok      bool
+	)
 	switch v := value.(type) {
-	case float64, float32, int, int64:
-		return true
+	case float64:
+		percent, ok = v, true
+	case float32:
+		percent, ok = float64(v), true
+	case int:
+		percent, ok = float64(v), true
+	case int64:
+		percent, ok = float64(v), true
 	case json.Number:
-		_, err := v.Float64()
-		return err == nil
+		parsed, err := v.Float64()
+		if err == nil {
+			percent, ok = parsed, true
+		}
 	case string:
-		_, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
-		return err == nil
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err == nil {
+			percent, ok = parsed, true
+		}
 	}
-	return false
+	if !ok || math.IsNaN(percent) || math.IsInf(percent, 0) {
+		return 0, false
+	}
+	return percent, true
 }
 
 func openAIQuotaSummaryGroupKey(membership openAIQuotaSummaryGroupMembership) string {
