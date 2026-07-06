@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/nexus/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
 
@@ -141,6 +143,45 @@ func TestBuildOpenAIQuotaSummary_GroupAndTypeFilters(t *testing.T) {
 	require.Equal(t, int64(10), *out.Groups[0].GroupID)
 	require.Len(t, out.Groups[0].Rows, 1)
 	require.Equal(t, AccountTypeOAuth, out.Groups[0].Rows[0].AccountType)
+}
+
+func TestAdminServiceGetOpenAIQuotaSummary_LoadsAllOpenAIAccountsAcrossPages(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	repo := &openAIQuotaSummaryPagedRepo{
+		pages: [][]Account{
+			{openAIQuotaSummaryTestAccount(1, "a", AccountTypeOAuth, StatusActive, 0, 0, now.Add(time.Hour), now.Add(24*time.Hour))},
+			{openAIQuotaSummaryTestAccount(2, "b", AccountTypeAPIKey, StatusActive, 0, 0, now.Add(time.Hour), now.Add(24*time.Hour))},
+		},
+	}
+	svc := &adminServiceImpl{accountRepo: repo}
+
+	out, err := svc.GetOpenAIQuotaSummary(context.Background(), OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
+
+	require.NoError(t, err)
+	require.NotNil(t, out)
+	require.Len(t, out.Groups, 1)
+	require.Len(t, out.Groups[0].Rows, 2)
+	require.Equal(t, []string{"openai", "openai"}, repo.platforms)
+	require.Equal(t, []int{1, 2}, repo.pagesRequested)
+}
+
+type openAIQuotaSummaryPagedRepo struct {
+	AccountRepository
+
+	pages          [][]Account
+	platforms      []string
+	pagesRequested []int
+}
+
+func (r *openAIQuotaSummaryPagedRepo) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
+	r.platforms = append(r.platforms, platform)
+	r.pagesRequested = append(r.pagesRequested, params.Page)
+
+	pageIndex := params.Page - 1
+	if pageIndex < 0 || pageIndex >= len(r.pages) {
+		return nil, &pagination.PaginationResult{Total: 2, Page: params.Page, PageSize: params.PageSize}, nil
+	}
+	return r.pages[pageIndex], &pagination.PaginationResult{Total: 2, Page: params.Page, PageSize: params.PageSize}, nil
 }
 
 func openAIQuotaSummaryTestAccount(id int64, name, accountType, status string, used5h, used7d float64, reset5h, reset7d time.Time, groups ...*Group) Account {

@@ -78,6 +78,7 @@ type AdminService interface {
 
 	// Account management
 	ListAccounts(ctx context.Context, page, pageSize int, platform, accountType, status, search string, groupID int64, privacyMode string, sortBy, sortOrder string) ([]Account, int64, error)
+	GetOpenAIQuotaSummary(ctx context.Context, input OpenAIQuotaSummaryInput) (*OpenAIQuotaSummaryResponse, error)
 	GetAccount(ctx context.Context, id int64) (*Account, error)
 	GetAccountsByIDs(ctx context.Context, ids []int64) ([]*Account, error)
 	CreateAccount(ctx context.Context, input *CreateAccountInput) (*Account, error)
@@ -2739,6 +2740,48 @@ func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int,
 		return nil, 0, err
 	}
 	return accounts, result.Total, nil
+}
+
+func (s *adminServiceImpl) GetOpenAIQuotaSummary(ctx context.Context, input OpenAIQuotaSummaryInput) (*OpenAIQuotaSummaryResponse, error) {
+	if input.GeneratedAt.IsZero() {
+		input.GeneratedAt = time.Now().UTC()
+	}
+	if input.ProjectionAt.IsZero() {
+		input.ProjectionAt = input.GeneratedAt
+	}
+
+	const pageSize = 500
+	page := 1
+	var groupID int64
+	if input.GroupFilter != nil {
+		if input.GroupFilter.Ungrouped {
+			groupID = AccountListGroupUngrouped
+		} else if input.GroupFilter.ID != nil {
+			groupID = *input.GroupFilter.ID
+		}
+	}
+
+	accounts := make([]Account, 0, pageSize)
+	for {
+		params := pagination.PaginationParams{
+			Page:      page,
+			PageSize:  pageSize,
+			SortBy:    "id",
+			SortOrder: pagination.SortOrderAsc,
+		}
+		batch, pag, err := s.accountRepo.ListWithFilters(ctx, params, PlatformOpenAI, input.AccountType, "", "", groupID, "")
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, batch...)
+		if pag == nil || int64(len(accounts)) >= pag.Total {
+			break
+		}
+		page++
+	}
+
+	out := BuildOpenAIQuotaSummary(accounts, input)
+	return &out, nil
 }
 
 func (s *adminServiceImpl) GetAccount(ctx context.Context, id int64) (*Account, error) {
