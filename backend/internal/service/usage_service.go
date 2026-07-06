@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	dbent "github.com/Wei-Shaw/nexus/ent"
-	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
-	"github.com/Wei-Shaw/nexus/internal/pkg/pagination"
-	"github.com/Wei-Shaw/nexus/internal/pkg/usagestats"
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
 
 var (
