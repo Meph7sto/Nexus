@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	entsql "entgo.io/ent/dialect/sql"
-	"github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/service"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
 )
@@ -25,14 +25,14 @@ func ProvideConcurrencyCache(rdb *redis.Client, cfg *config.Config) service.Conc
 	return NewConcurrencyCache(rdb, cfg.Gateway.ConcurrencySlotTTLMinutes, waitTTLSeconds)
 }
 
-// ProvideGitHubReleaseClient 创建 GitHub Release 客户端
-// 从配置中读取代理设置，支持国内服务器通过代理访问 GitHub
-func ProvideGitHubReleaseClient(cfg *config.Config) service.GitHubReleaseClient {
-	return NewGitHubReleaseClient(cfg.Update.ProxyURL, cfg.Security.ProxyFallback.AllowDirectOnError)
+// ProvideReleaseClient 创建 Release 客户端
+// 从配置中读取代理设置，供需要远程下载的维护任务使用
+func ProvideReleaseClient(cfg *config.Config) service.ReleaseClient {
+	return NewReleaseClient(cfg.Update.ProxyURL, cfg.Security.ProxyFallback.AllowDirectOnError)
 }
 
 // ProvidePricingRemoteClient 创建定价数据远程客户端
-// 从配置中读取代理设置，支持国内服务器通过代理访问 GitHub 上的定价数据
+// 从配置中读取代理设置，支持通过代理访问外部定价数据
 func ProvidePricingRemoteClient(cfg *config.Config) service.PricingRemoteClient {
 	return NewPricingRemoteClient(cfg.Update.ProxyURL, cfg.Security.ProxyFallback.AllowDirectOnError)
 }
@@ -135,7 +135,7 @@ var ProviderSet = wire.NewSet(
 	// HTTP service ports (DI Strategy A: return interface directly)
 	NewTurnstileVerifier,
 	ProvidePricingRemoteClient,
-	ProvideGitHubReleaseClient,
+	ProvideReleaseClient,
 	NewProxyExitInfoProber,
 	NewClaudeUsageFetcher,
 	NewClaudeOAuthClient,

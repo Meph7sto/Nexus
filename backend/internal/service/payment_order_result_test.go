@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/internal/payment"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 )
 
 func TestBuildCreateOrderResponseDefaultsToOrderCreated(t *testing.T) {
@@ -21,13 +21,13 @@ func TestBuildCreateOrderResponseDefaultsToOrderCreated(t *testing.T) {
 			Amount:     12.34,
 			FeeRate:    0.03,
 			ExpiresAt:  expiresAt,
-			OutTradeNo: "sub2_42",
+			OutTradeNo: "nexus_42",
 		},
 		CreateOrderRequest{PaymentType: payment.TypeWxpay},
 		12.71,
 		&payment.InstanceSelection{PaymentMode: "qrcode"},
 		&payment.CreatePaymentResponse{
-			TradeNo: "sub2_42",
+			TradeNo: "nexus_42",
 			QRCode:  "weixin://wxpay/bizpayurl?pr=test",
 		},
 		payment.CreatePaymentResultOrderCreated,
@@ -36,8 +36,8 @@ func TestBuildCreateOrderResponseDefaultsToOrderCreated(t *testing.T) {
 	if resp.ResultType != payment.CreatePaymentResultOrderCreated {
 		t.Fatalf("result type = %q, want %q", resp.ResultType, payment.CreatePaymentResultOrderCreated)
 	}
-	if resp.OutTradeNo != "sub2_42" {
-		t.Fatalf("out_trade_no = %q, want %q", resp.OutTradeNo, "sub2_42")
+	if resp.OutTradeNo != "nexus_42" {
+		t.Fatalf("out_trade_no = %q, want %q", resp.OutTradeNo, "nexus_42")
 	}
 	if resp.QRCode != "weixin://wxpay/bizpayurl?pr=test" {
 		t.Fatalf("qr_code = %q, want %q", resp.QRCode, "weixin://wxpay/bizpayurl?pr=test")
@@ -67,13 +67,13 @@ func TestBuildCreateOrderResponseCopiesJSAPIPayload(t *testing.T) {
 			Amount:     66.88,
 			FeeRate:    0.01,
 			ExpiresAt:  time.Date(2026, 4, 16, 13, 0, 0, 0, time.UTC),
-			OutTradeNo: "sub2_88",
+			OutTradeNo: "nexus_88",
 		},
 		CreateOrderRequest{PaymentType: payment.TypeWxpay},
 		67.55,
 		&payment.InstanceSelection{PaymentMode: "popup"},
 		&payment.CreatePaymentResponse{
-			TradeNo:    "sub2_88",
+			TradeNo:    "nexus_88",
 			ResultType: payment.CreatePaymentResultJSAPIReady,
 			JSAPI:      jsapiPayload,
 		},
@@ -234,8 +234,8 @@ func TestBuildPaymentSubjectAppliesAffixToSubscriptionPlanDefaultName(t *testing
 	plan := &dbent.SubscriptionPlan{Name: "Team Monthly"}
 
 	got := svc.buildPaymentSubject(plan, 0, cfg, nil)
-	if got != "PRE Sub2API Subscription Team Monthly SUF" {
-		t.Fatalf("buildPaymentSubject() = %q, want %q", got, "PRE Sub2API Subscription Team Monthly SUF")
+	if got != "PRE Nexus Subscription Team Monthly SUF" {
+		t.Fatalf("buildPaymentSubject() = %q, want %q", got, "PRE Nexus Subscription Team Monthly SUF")
 	}
 }
 

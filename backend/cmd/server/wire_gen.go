@@ -8,15 +8,15 @@ package main
 
 import (
 	"context"
-	"github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/handler"
-	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
-	"github.com/Wei-Shaw/sub2api/internal/repository"
-	"github.com/Wei-Shaw/sub2api/internal/server"
-	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/handler"
+	"github.com/Wei-Shaw/nexus/internal/handler/admin"
+	"github.com/Wei-Shaw/nexus/internal/payment"
+	"github.com/Wei-Shaw/nexus/internal/repository"
+	"github.com/Wei-Shaw/nexus/internal/server"
+	"github.com/Wei-Shaw/nexus/internal/server/middleware"
+	"github.com/Wei-Shaw/nexus/internal/service"
 	"github.com/redis/go-redis/v9"
 	"log"
 	"net/http"
@@ -26,7 +26,7 @@ import (
 
 import (
 	_ "embed"
-	_ "github.com/Wei-Shaw/sub2api/ent/runtime"
+	_ "github.com/Wei-Shaw/nexus/ent/runtime"
 )
 
 // Injectors from wire.go:
@@ -215,9 +215,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	settingHandler := handler.ProvideAdminSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService, notificationEmailService)
 	opsHandler := admin.NewOpsHandler(opsService)
 	updateCache := repository.NewUpdateCache(redisClient)
-	gitHubReleaseClient := repository.ProvideGitHubReleaseClient(configConfig)
+	releaseClient := repository.ProvideReleaseClient(configConfig)
 	serviceBuildInfo := provideServiceBuildInfo(buildInfo)
-	updateService := service.ProvideUpdateService(updateCache, gitHubReleaseClient, serviceBuildInfo)
+	updateService := service.ProvideUpdateService(updateCache, releaseClient, serviceBuildInfo)
 	idempotencyRepository := repository.NewIdempotencyRepository(client, db)
 	systemOperationLockService := service.ProvideSystemOperationLockService(idempotencyRepository, configConfig)
 	systemHandler := handler.ProvideSystemHandler(updateService, systemOperationLockService)

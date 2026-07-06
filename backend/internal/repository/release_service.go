@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,25 +10,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/internal/pkg/httpclient"
+	"github.com/Wei-Shaw/nexus/internal/service"
 )
 
-type githubReleaseClient struct {
+type releaseClient struct {
 	httpClient         *http.Client
 	downloadHTTPClient *http.Client
 }
 
-type githubReleaseClientError struct {
+type releaseClientError struct {
 	err error
 }
 
-// NewGitHubReleaseClient 创建 GitHub Release 客户端
-// proxyURL 为空时直连 GitHub，支持 http/https/socks5/socks5h 协议
+// NewReleaseClient 创建 Release 客户端
+// proxyURL 为空时直连，支持 http/https/socks5/socks5h 协议
 // 代理配置失败时行为由 allowDirectOnProxyError 控制：
 //   - false（默认）：返回错误占位客户端，禁止回退到直连
 //   - true：回退到直连（仅限管理员显式开启）
-func NewGitHubReleaseClient(proxyURL string, allowDirectOnProxyError bool) service.GitHubReleaseClient {
+func NewReleaseClient(proxyURL string, allowDirectOnProxyError bool) service.ReleaseClient {
 	// 安全说明：httpclient.GetClient 的错误链（url.Parse / proxyutil）不含明文代理凭据，
 	// 但仍通过 slog 仅在服务端日志记录，不会暴露给 HTTP 响应。
 	sharedClient, err := httpclient.GetClient(httpclient.Options{
@@ -38,8 +37,8 @@ func NewGitHubReleaseClient(proxyURL string, allowDirectOnProxyError bool) servi
 	})
 	if err != nil {
 		if strings.TrimSpace(proxyURL) != "" && !allowDirectOnProxyError {
-			slog.Warn("proxy client init failed, all requests will fail", "service", "github_release", "error", err)
-			return &githubReleaseClientError{err: fmt.Errorf("proxy client init failed and direct fallback is disabled; set security.proxy_fallback.allow_direct_on_error=true to allow fallback: %w", err)}
+			slog.Warn("proxy client init failed, all requests will fail", "service", "release", "error", err)
+			return &releaseClientError{err: fmt.Errorf("proxy client init failed and direct fallback is disabled; set security.proxy_fallback.allow_direct_on_error=true to allow fallback: %w", err)}
 		}
 		sharedClient = &http.Client{Timeout: 30 * time.Second}
 	}
@@ -51,59 +50,35 @@ func NewGitHubReleaseClient(proxyURL string, allowDirectOnProxyError bool) servi
 	})
 	if err != nil {
 		if strings.TrimSpace(proxyURL) != "" && !allowDirectOnProxyError {
-			slog.Warn("proxy download client init failed, all requests will fail", "service", "github_release", "error", err)
-			return &githubReleaseClientError{err: fmt.Errorf("proxy client init failed and direct fallback is disabled; set security.proxy_fallback.allow_direct_on_error=true to allow fallback: %w", err)}
+			slog.Warn("proxy download client init failed, all requests will fail", "service", "release", "error", err)
+			return &releaseClientError{err: fmt.Errorf("proxy client init failed and direct fallback is disabled; set security.proxy_fallback.allow_direct_on_error=true to allow fallback: %w", err)}
 		}
 		downloadClient = &http.Client{Timeout: 10 * time.Minute}
 	}
 
-	return &githubReleaseClient{
+	return &releaseClient{
 		httpClient:         sharedClient,
 		downloadHTTPClient: downloadClient,
 	}
 }
 
-func (c *githubReleaseClientError) FetchLatestRelease(ctx context.Context, repo string) (*service.GitHubRelease, error) {
+func (c *releaseClientError) FetchLatestRelease(ctx context.Context, repo string) (*service.Release, error) {
 	return nil, c.err
 }
 
-func (c *githubReleaseClientError) DownloadFile(ctx context.Context, url, dest string, maxSize int64) error {
+func (c *releaseClientError) DownloadFile(ctx context.Context, url, dest string, maxSize int64) error {
 	return c.err
 }
 
-func (c *githubReleaseClientError) FetchChecksumFile(ctx context.Context, url string) ([]byte, error) {
+func (c *releaseClientError) FetchChecksumFile(ctx context.Context, url string) ([]byte, error) {
 	return nil, c.err
 }
 
-func (c *githubReleaseClient) FetchLatestRelease(ctx context.Context, repo string) (*service.GitHubRelease, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "Sub2API-Updater")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
-	}
-
-	var release service.GitHubRelease
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return nil, err
-	}
-
-	return &release, nil
+func (c *releaseClient) FetchLatestRelease(ctx context.Context, repo string) (*service.Release, error) {
+	return nil, fmt.Errorf("online release checks are disabled")
 }
 
-func (c *githubReleaseClient) DownloadFile(ctx context.Context, url, dest string, maxSize int64) error {
+func (c *releaseClient) DownloadFile(ctx context.Context, url, dest string, maxSize int64) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -151,7 +126,7 @@ func (c *githubReleaseClient) DownloadFile(ctx context.Context, url, dest string
 	return nil
 }
 
-func (c *githubReleaseClient) FetchChecksumFile(ctx context.Context, url string) ([]byte, error) {
+func (c *releaseClient) FetchChecksumFile(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

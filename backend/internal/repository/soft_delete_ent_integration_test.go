@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/apikey"
-	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
-	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/ent/apikey"
+	"github.com/Wei-Shaw/nexus/ent/schema/mixins"
+	"github.com/Wei-Shaw/nexus/ent/usersubscription"
+	"github.com/Wei-Shaw/nexus/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -197,13 +197,13 @@ func TestEntSoftDelete_UserSubscription_ListExcludesDeleted(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, sub1), "create subscription 1")
 
-	sub2 := &service.UserSubscription{
+	subscription2 := &service.UserSubscription{
 		UserID:    u.ID,
 		GroupID:   g2.ID,
 		Status:    service.SubscriptionStatusActive,
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 	}
-	require.NoError(t, repo.Create(ctx, sub2), "create subscription 2")
+	require.NoError(t, repo.Create(ctx, subscription2), "create subscription 2")
 
 	// 软删除 sub1
 	require.NoError(t, repo.Delete(ctx, sub1.ID), "soft delete subscription 1")
@@ -212,5 +212,5 @@ func TestEntSoftDelete_UserSubscription_ListExcludesDeleted(t *testing.T) {
 	subs, err := repo.ListByUserID(ctx, u.ID)
 	require.NoError(t, err, "ListByUserID")
 	require.Len(t, subs, 1, "should only return non-deleted subscriptions")
-	require.Equal(t, sub2.ID, subs[0].ID, "expected sub2 to be returned")
+	require.Equal(t, subscription2.ID, subs[0].ID, "expected subscription2 to be returned")
 }

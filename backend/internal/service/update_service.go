@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 )
 
 var (
@@ -26,13 +26,13 @@ var (
 )
 
 const (
-	updateCacheKey = "update_check_cache"
-	updateCacheTTL = 1200 // 20 minutes
-	githubRepo     = "Wei-Shaw/sub2api"
+	updateCacheKey  = "update_check_cache"
+	updateCacheTTL  = 1200 // 20 minutes
+	releaseSourceID = "nexus"
 
 	// Security: allowed download domains for updates
-	allowedDownloadHost = "github.com"
-	allowedAssetHost    = "objects.githubusercontent.com"
+	allowedDownloadHost = "localhost"
+	allowedAssetHost    = "127.0.0.1"
 
 	// Security: max download size (500MB)
 	maxDownloadSize = 500 * 1024 * 1024
@@ -44,9 +44,9 @@ type UpdateCache interface {
 	SetUpdateInfo(ctx context.Context, data string, ttl time.Duration) error
 }
 
-// GitHubReleaseClient 获取 GitHub release 信息的接口
-type GitHubReleaseClient interface {
-	FetchLatestRelease(ctx context.Context, repo string) (*GitHubRelease, error)
+// ReleaseClient 获取 release 信息的接口
+type ReleaseClient interface {
+	FetchLatestRelease(ctx context.Context, repo string) (*Release, error)
 	DownloadFile(ctx context.Context, url, dest string, maxSize int64) error
 	FetchChecksumFile(ctx context.Context, url string) ([]byte, error)
 }
@@ -54,16 +54,16 @@ type GitHubReleaseClient interface {
 // UpdateService handles software updates
 type UpdateService struct {
 	cache          UpdateCache
-	githubClient   GitHubReleaseClient
+	releaseClient  ReleaseClient
 	currentVersion string
 	buildType      string // "source" for manual builds, "release" for CI builds
 }
 
 // NewUpdateService creates a new UpdateService
-func NewUpdateService(cache UpdateCache, githubClient GitHubReleaseClient, version, buildType string) *UpdateService {
+func NewUpdateService(cache UpdateCache, releaseClient ReleaseClient, version, buildType string) *UpdateService {
 	return &UpdateService{
 		cache:          cache,
-		githubClient:   githubClient,
+		releaseClient:  releaseClient,
 		currentVersion: version,
 		buildType:      buildType,
 	}
@@ -80,7 +80,7 @@ type UpdateInfo struct {
 	BuildType      string       `json:"build_type"` // "source" or "release"
 }
 
-// ReleaseInfo contains GitHub release details
+// ReleaseInfo contains release details
 type ReleaseInfo struct {
 	Name        string  `json:"name"`
 	Body        string  `json:"body"`
@@ -96,17 +96,17 @@ type Asset struct {
 	Size        int64  `json:"size"`
 }
 
-// GitHubRelease represents GitHub API response
-type GitHubRelease struct {
-	TagName     string        `json:"tag_name"`
-	Name        string        `json:"name"`
-	Body        string        `json:"body"`
-	PublishedAt string        `json:"published_at"`
-	HTMLURL     string        `json:"html_url"`
-	Assets      []GitHubAsset `json:"assets"`
+// Release represents a release metadata response.
+type Release struct {
+	TagName     string         `json:"tag_name"`
+	Name        string         `json:"name"`
+	Body        string         `json:"body"`
+	PublishedAt string         `json:"published_at"`
+	HTMLURL     string         `json:"html_url"`
+	Assets      []ReleaseAsset `json:"assets"`
 }
 
-type GitHubAsset struct {
+type ReleaseAsset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
 	Size               int64  `json:"size"`
@@ -121,7 +121,7 @@ func (s *UpdateService) CheckUpdate(ctx context.Context, force bool) (*UpdateInf
 		}
 	}
 
-	// Fetch from GitHub
+	// Fetch from the configured release source.
 	info, err := s.fetchLatestRelease(ctx)
 	if err != nil {
 		// Return cached on error
@@ -197,7 +197,7 @@ func (s *UpdateService) PerformUpdate(ctx context.Context) error {
 
 	// Create temp directory in the SAME directory as executable
 	// This ensures os.Rename is atomic (same filesystem)
-	tempDir, err := os.MkdirTemp(exeDir, ".sub2api-update-*")
+	tempDir, err := os.MkdirTemp(exeDir, ".nexus-update-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
@@ -217,7 +217,7 @@ func (s *UpdateService) PerformUpdate(ctx context.Context) error {
 	}
 
 	// Extract binary from archive
-	newBinaryPath := filepath.Join(tempDir, "sub2api")
+	newBinaryPath := filepath.Join(tempDir, "nexus")
 	if err := s.extractBinary(archivePath, newBinaryPath); err != nil {
 		return fmt.Errorf("extraction failed: %w", err)
 	}
@@ -280,7 +280,7 @@ func (s *UpdateService) Rollback() error {
 }
 
 func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, error) {
-	release, err := s.githubClient.FetchLatestRelease(ctx, githubRepo)
+	release, err := s.releaseClient.FetchLatestRelease(ctx, releaseSourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +313,7 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 }
 
 func (s *UpdateService) downloadFile(ctx context.Context, downloadURL, dest string) error {
-	return s.githubClient.DownloadFile(ctx, downloadURL, dest, maxDownloadSize)
+	return s.releaseClient.DownloadFile(ctx, downloadURL, dest, maxDownloadSize)
 }
 
 func (s *UpdateService) getArchiveName() string {
@@ -323,7 +323,7 @@ func (s *UpdateService) getArchiveName() string {
 }
 
 // validateDownloadURL checks if the URL is from an allowed domain
-// SECURITY: This prevents SSRF and ensures downloads only come from trusted GitHub domains
+// SECURITY: This prevents SSRF and ensures downloads only come from trusted domains.
 func validateDownloadURL(rawURL string) error {
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
@@ -337,7 +337,6 @@ func validateDownloadURL(rawURL string) error {
 
 	// Check against allowed hosts
 	host := parsedURL.Host
-	// GitHub release URLs can be from github.com or objects.githubusercontent.com
 	if host != allowedDownloadHost &&
 		!strings.HasSuffix(host, "."+allowedDownloadHost) &&
 		host != allowedAssetHost &&
@@ -350,7 +349,7 @@ func validateDownloadURL(rawURL string) error {
 
 func (s *UpdateService) verifyChecksum(ctx context.Context, filePath, checksumURL string) error {
 	// Download checksums file
-	checksumData, err := s.githubClient.FetchChecksumFile(ctx, checksumURL)
+	checksumData, err := s.releaseClient.FetchChecksumFile(ctx, checksumURL)
 	if err != nil {
 		return fmt.Errorf("failed to download checksums: %w", err)
 	}
@@ -431,7 +430,7 @@ func (s *UpdateService) extractBinary(archivePath, destPath string) error {
 			}
 
 			// Only extract the specific binary we need
-			if baseName == "sub2api" || baseName == "sub2api.exe" {
+			if baseName == "nexus" || baseName == "nexus.exe" {
 				// Additional security: limit file size (max 500MB)
 				const maxBinarySize = 500 * 1024 * 1024
 				if hdr.Size > maxBinarySize {

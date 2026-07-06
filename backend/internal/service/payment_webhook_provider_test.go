@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/internal/payment"
 	"github.com/stretchr/testify/require"
 )
 
@@ -413,7 +413,7 @@ func TestGetWebhookProviderRejectsRegistryFallbackForPinnedOrder(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("TEST-RECHARGE").
-		SetOutTradeNo("sub2_test_pinned_order").
+		SetOutTradeNo("nexus_test_pinned_order").
 		SetPaymentType(payment.TypeWxpay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -437,7 +437,7 @@ func TestGetWebhookProviderRejectsRegistryFallbackForPinnedOrder(t *testing.T) {
 		providersLoaded: true,
 	}
 
-	_, err = svc.GetWebhookProviders(ctx, payment.TypeWxpay, "sub2_test_pinned_order")
+	_, err = svc.GetWebhookProviders(ctx, payment.TypeWxpay, "nexus_test_pinned_order")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "provider instance")
 }
@@ -479,7 +479,7 @@ func TestGetWebhookProviderUsesProviderSnapshotBeforeWxpayFallback(t *testing.T)
 		SetPayAmount(66).
 		SetFeeRate(0).
 		SetRechargeCode("SNAPSHOT-WEBHOOK").
-		SetOutTradeNo("sub2_test_snapshot_webhook_order").
+		SetOutTradeNo("nexus_test_snapshot_webhook_order").
 		SetPaymentType(payment.TypeWxpay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -503,7 +503,7 @@ func TestGetWebhookProviderUsesProviderSnapshotBeforeWxpayFallback(t *testing.T)
 		providersLoaded: true,
 	}
 
-	providers, err := svc.GetWebhookProviders(ctx, payment.TypeWxpay, "sub2_test_snapshot_webhook_order")
+	providers, err := svc.GetWebhookProviders(ctx, payment.TypeWxpay, "nexus_test_snapshot_webhook_order")
 	require.NoError(t, err)
 	require.Len(t, providers, 1)
 	require.Equal(t, payment.TypeWxpay, providers[0].ProviderKey())

@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
+	"github.com/Wei-Shaw/nexus/internal/pkg/logger"
+	"github.com/Wei-Shaw/nexus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"

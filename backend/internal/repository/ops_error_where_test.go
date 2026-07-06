@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/internal/service"
 )
 
 func TestBuildOpsErrorLogsWhere_UserScopedFilters(t *testing.T) {

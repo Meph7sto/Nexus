@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/payment"
+	"github.com/Wei-Shaw/nexus/internal/payment"
 	"github.com/smartwalle/alipay/v3"
 )
 
@@ -155,8 +155,8 @@ func TestCreateTradeUsesPagePayForDesktop(t *testing.T) {
 	}
 	alipayTradePagePay = func(client *alipay.Client, param alipay.TradePagePay) (*url.URL, error) {
 		pagePayCalls++
-		if param.OutTradeNo != "sub2_100" {
-			t.Fatalf("out_trade_no = %q, want %q", param.OutTradeNo, "sub2_100")
+		if param.OutTradeNo != "nexus_100" {
+			t.Fatalf("out_trade_no = %q, want %q", param.OutTradeNo, "nexus_100")
 		}
 		if param.NotifyURL != "https://merchant.example.com/api/v1/payment/webhook/alipay" {
 			t.Fatalf("notify_url = %q", param.NotifyURL)
@@ -170,7 +170,7 @@ func TestCreateTradeUsesPagePayForDesktop(t *testing.T) {
 
 	provider := &Alipay{}
 	resp, err := provider.createDesktopTrade(context.Background(), &alipay.Client{}, payment.CreatePaymentRequest{
-		OrderID: "sub2_100",
+		OrderID: "nexus_100",
 		Amount:  "88.00",
 		Subject: "Balance recharge",
 	}, "https://merchant.example.com/api/v1/payment/webhook/alipay", "https://merchant.example.com/payment/result")
@@ -228,7 +228,7 @@ func TestCreateTradeRedirectModeSkipsPrecreate(t *testing.T) {
 		config: map[string]string{"paymentMode": "redirect"},
 	}
 	resp, err := provider.createDesktopTrade(context.Background(), &alipay.Client{}, payment.CreatePaymentRequest{
-		OrderID: "sub2_103",
+		OrderID: "nexus_103",
 		Amount:  "12.00",
 		Subject: "Balance recharge",
 	}, "https://merchant.example.com/api/v1/payment/webhook/alipay", "https://merchant.example.com/payment/result")
@@ -266,7 +266,7 @@ func TestCreateTradeUsesWapPayForMobile(t *testing.T) {
 
 	provider := &Alipay{}
 	resp, err := provider.createWapTrade(&alipay.Client{}, payment.CreatePaymentRequest{
-		OrderID:  "sub2_101",
+		OrderID:  "nexus_101",
 		Amount:   "18.00",
 		Subject:  "Balance recharge",
 		IsMobile: true,
@@ -309,7 +309,7 @@ func TestCreateTradeUsesPrecreateForDesktopWhenAvailable(t *testing.T) {
 
 	provider := &Alipay{}
 	resp, err := provider.createDesktopTrade(context.Background(), &alipay.Client{}, payment.CreatePaymentRequest{
-		OrderID: "sub2_102",
+		OrderID: "nexus_102",
 		Amount:  "66.00",
 		Subject: "Balance recharge",
 	}, "https://merchant.example.com/api/v1/payment/webhook/alipay", "https://merchant.example.com/payment/result")

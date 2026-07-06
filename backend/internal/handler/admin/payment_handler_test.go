@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
+	dbent "github.com/Wei-Shaw/nexus/ent"
 )
 
 func TestSanitizeAdminPaymentOrderForResponseAddsCurrency(t *testing.T) {
@@ -17,7 +17,7 @@ func TestSanitizeAdminPaymentOrderForResponseAddsCurrency(t *testing.T) {
 		Amount:      100,
 		PayAmount:   108,
 		FeeRate:     8,
-		OutTradeNo:  "sub2_202606250001",
+		OutTradeNo:  "nexus_202606250001",
 		PaymentType: "stripe",
 		OrderType:   "subscription",
 		Status:      "COMPLETED",

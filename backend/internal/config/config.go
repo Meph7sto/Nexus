@@ -629,7 +629,7 @@ type CSPConfig struct {
 type ProxyFallbackConfig struct {
 	// AllowDirectOnError 当辅助服务的代理初始化失败时是否允许回退直连。
 	// 仅影响以下非 AI 账号连接的辅助服务：
-	//   - GitHub Release 更新检查
+	//   - 在线更新检查
 	//   - 定价数据拉取
 	// 不影响 AI 账号网关连接（Claude/OpenAI/Gemini/Antigravity），
 	// 这些关键路径的代理失败始终返回错误，不会回退直连。
@@ -1394,7 +1394,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	// 4. Config subdirectory
 	viper.AddConfigPath("./config")
 	// 5. System config directory
-	viper.AddConfigPath("/etc/sub2api")
+	viper.AddConfigPath("/etc/nexus")
 
 	// 环境变量支持
 	viper.AutomaticEnv()
@@ -1570,7 +1570,7 @@ func setDefaults() {
 	// Log
 	viper.SetDefault("log.level", "info")
 	viper.SetDefault("log.format", "console")
-	viper.SetDefault("log.service_name", "sub2api")
+	viper.SetDefault("log.service_name", "nexus")
 	viper.SetDefault("log.env", "production")
 	viper.SetDefault("log.caller", true)
 	viper.SetDefault("log.stacktrace_level", "error")
@@ -1602,9 +1602,7 @@ func setDefaults() {
 		"cloudcode-pa.googleapis.com",
 		"*.openai.azure.com",
 	})
-	viper.SetDefault("security.url_allowlist.pricing_hosts", []string{
-		"raw.githubusercontent.com",
-	})
+	viper.SetDefault("security.url_allowlist.pricing_hosts", []string{})
 	viper.SetDefault("security.url_allowlist.crs_hosts", []string{})
 	viper.SetDefault("security.url_allowlist.allow_private_hosts", true)
 	viper.SetDefault("security.url_allowlist.allow_insecure_http", true)
@@ -1707,7 +1705,7 @@ func setDefaults() {
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.user", "postgres")
 	viper.SetDefault("database.password", "postgres")
-	viper.SetDefault("database.dbname", "sub2api")
+	viper.SetDefault("database.dbname", "nexus")
 	viper.SetDefault("database.sslmode", "prefer")
 	viper.SetDefault("database.max_open_conns", 256)
 	viper.SetDefault("database.max_idle_conns", 128)
@@ -1767,9 +1765,9 @@ func setDefaults() {
 	viper.SetDefault("rate_limit.overload_cooldown_minutes", 10)
 	viper.SetDefault("rate_limit.oauth_401_cooldown_minutes", 10)
 
-	// Pricing - 从 model-price-repo 同步模型定价和上下文窗口数据（固定到 commit，避免分支漂移）
-	viper.SetDefault("pricing.remote_url", "https://raw.githubusercontent.com/Wei-Shaw/model-price-repo/main/model_prices_and_context_window.json")
-	viper.SetDefault("pricing.hash_url", "https://raw.githubusercontent.com/Wei-Shaw/model-price-repo/main/model_prices_and_context_window.sha256")
+	// Pricing - use bundled model pricing data by default.
+	viper.SetDefault("pricing.remote_url", "")
+	viper.SetDefault("pricing.hash_url", "")
 	viper.SetDefault("pricing.data_dir", "./data")
 	viper.SetDefault("pricing.fallback_file", "./resources/model-pricing/model_prices_and_context_window.json")
 	viper.SetDefault("pricing.update_interval_hours", 24)
@@ -1793,7 +1791,7 @@ func setDefaults() {
 
 	// Dashboard cache
 	viper.SetDefault("dashboard_cache.enabled", true)
-	viper.SetDefault("dashboard_cache.key_prefix", "sub2api:")
+	viper.SetDefault("dashboard_cache.key_prefix", "nexus:")
 	viper.SetDefault("dashboard_cache.stats_fresh_ttl_seconds", 15)
 	viper.SetDefault("dashboard_cache.stats_ttl_seconds", 30)
 	viper.SetDefault("dashboard_cache.stats_refresh_timeout_seconds", 30)
@@ -2894,7 +2892,7 @@ func GetServerAddress() string {
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
 	v.AddConfigPath("./config")
-	v.AddConfigPath("/etc/sub2api")
+	v.AddConfigPath("/etc/nexus")
 
 	// Support SERVER_HOST and SERVER_PORT environment variables
 	v.AutomaticEnv()

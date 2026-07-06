@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/apicompat"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
-	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
+	"github.com/Wei-Shaw/nexus/internal/pkg/apicompat"
+	"github.com/Wei-Shaw/nexus/internal/pkg/logger"
+	"github.com/Wei-Shaw/nexus/internal/pkg/xai"
+	"github.com/Wei-Shaw/nexus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -163,7 +163,7 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	if customUA != "" {
 		upstreamReq.Header.Set("user-agent", customUA)
 	} else if account.Platform == PlatformGrok {
-		upstreamReq.Header.Set("user-agent", "sub2api-grok/1.0")
+		upstreamReq.Header.Set("user-agent", "nexus-grok/1.0")
 	}
 
 	// 6. Send request

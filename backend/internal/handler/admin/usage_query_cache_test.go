@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	"github.com/Wei-Shaw/nexus/internal/pkg/usagestats"
 	"github.com/stretchr/testify/require"
 )
 

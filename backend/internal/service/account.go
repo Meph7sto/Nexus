@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/domain"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
+	"github.com/Wei-Shaw/nexus/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/domain"
+	"github.com/Wei-Shaw/nexus/internal/pkg/xai"
 )
 
 type Account struct {

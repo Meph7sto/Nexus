@@ -1,4 +1,4 @@
-module github.com/Wei-Shaw/sub2api
+module github.com/Wei-Shaw/nexus
 
 go 1.26.4
 

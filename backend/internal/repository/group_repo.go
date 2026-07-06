@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/group"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/ent/group"
+	"github.com/Wei-Shaw/nexus/internal/pkg/logger"
+	"github.com/Wei-Shaw/nexus/internal/pkg/pagination"
+	"github.com/Wei-Shaw/nexus/internal/service"
 	"github.com/lib/pq"
 
 	entsql "entgo.io/ent/dialect/sql"

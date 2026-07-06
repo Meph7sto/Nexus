@@ -9,9 +9,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
-	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/internal/pkg/response"
+	middleware2 "github.com/Wei-Shaw/nexus/internal/server/middleware"
+	"github.com/Wei-Shaw/nexus/internal/service"
 	"github.com/gin-gonic/gin"
 )
 

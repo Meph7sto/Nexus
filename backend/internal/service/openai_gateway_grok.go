@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
+	"github.com/Wei-Shaw/nexus/internal/pkg/xai"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -321,7 +321,7 @@ func buildGrokResponsesRequest(ctx context.Context, c *gin.Context, account *Acc
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
-	req.Header.Set("User-Agent", "sub2api-grok/1.0")
+	req.Header.Set("User-Agent", "nexus-grok/1.0")
 	if c != nil {
 		if v := c.GetHeader("OpenAI-Beta"); strings.TrimSpace(v) != "" {
 			req.Header.Set("OpenAI-Beta", v)

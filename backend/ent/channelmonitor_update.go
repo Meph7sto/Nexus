@@ -12,11 +12,11 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
-	"github.com/Wei-Shaw/sub2api/ent/channelmonitor"
-	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
-	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
-	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
-	"github.com/Wei-Shaw/sub2api/ent/predicate"
+	"github.com/Wei-Shaw/nexus/ent/channelmonitor"
+	"github.com/Wei-Shaw/nexus/ent/channelmonitordailyrollup"
+	"github.com/Wei-Shaw/nexus/ent/channelmonitorhistory"
+	"github.com/Wei-Shaw/nexus/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/nexus/ent/predicate"
 )
 
 // ChannelMonitorUpdate is the builder for updating ChannelMonitor entities.

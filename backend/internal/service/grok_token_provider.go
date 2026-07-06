@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
+	"github.com/Wei-Shaw/nexus/internal/util/logredact"
 )
 
 const (

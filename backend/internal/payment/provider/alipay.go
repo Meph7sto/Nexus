@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/payment"
+	"github.com/Wei-Shaw/nexus/internal/payment"
 	"github.com/smartwalle/alipay/v3"
 )
 

@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
-	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/ent/paymentauditlog"
+	"github.com/Wei-Shaw/nexus/ent/paymentorder"
+	"github.com/Wei-Shaw/nexus/internal/payment"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 )
 
 // --- Cancel & Expire ---

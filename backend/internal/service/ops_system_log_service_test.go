@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/config"
 )
 
 func TestOpsServiceListSystemLogs_DefaultClampAndSuccess(t *testing.T) {

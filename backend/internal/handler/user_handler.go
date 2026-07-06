@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
-	"github.com/Wei-Shaw/sub2api/internal/handler/quotaview"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
-	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/internal/handler/dto"
+	"github.com/Wei-Shaw/nexus/internal/handler/quotaview"
+	"github.com/Wei-Shaw/nexus/internal/pkg/response"
+	middleware2 "github.com/Wei-Shaw/nexus/internal/server/middleware"
+	"github.com/Wei-Shaw/nexus/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

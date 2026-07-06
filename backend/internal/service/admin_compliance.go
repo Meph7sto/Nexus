@@ -3,24 +3,23 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 )
 
 const (
 	AdminComplianceVersion        = "v2026.06.10"
 	AdminComplianceDocumentPathZH = "docs/legal/admin-compliance.zh.md"
 	AdminComplianceDocumentPathEN = "docs/legal/admin-compliance.en.md"
-	AdminComplianceDocumentURLZH  = "https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.zh.md"
-	AdminComplianceDocumentURLEN  = "https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.en.md"
-	AdminComplianceAckPhraseZH    = "我已阅读、理解并同意 Sub2API 部署与运营合规承诺"
-	AdminComplianceAckPhraseEN    = "I have read, understood, and agree to the Sub2API Deployment and Operation Compliance Commitment"
+	AdminComplianceDocumentURLZH  = ""
+	AdminComplianceDocumentURLEN  = ""
+	AdminComplianceAckPhraseZH    = "我已阅读、理解并同意 Nexus 部署与运营合规承诺"
+	AdminComplianceAckPhraseEN    = "I have read, understood, and agree to the Nexus Deployment and Operation Compliance Commitment"
 
 	settingKeyAdminComplianceAcknowledgement = "admin_compliance_acknowledgement"
 )
@@ -90,8 +89,9 @@ func adminComplianceAcknowledgementKey(adminUserID int64) string {
 }
 
 func (s *SettingService) GetAdminComplianceStatus(ctx context.Context, adminUserID int64) (*AdminComplianceStatus, error) {
+	// Admin compliance check disabled — always return not required.
 	status := &AdminComplianceStatus{
-		Required:       true,
+		Required:       false,
 		Version:        AdminComplianceVersion,
 		DocumentPathZH: AdminComplianceDocumentPathZH,
 		DocumentPathEN: AdminComplianceDocumentPathEN,
@@ -99,26 +99,6 @@ func (s *SettingService) GetAdminComplianceStatus(ctx context.Context, adminUser
 		DocumentURLEN:  AdminComplianceDocumentURLEN,
 		AckPhraseZH:    AdminComplianceAckPhraseZH,
 		AckPhraseEN:    AdminComplianceAckPhraseEN,
-	}
-	if s == nil || s.settingRepo == nil {
-		return status, nil
-	}
-
-	raw, err := s.settingRepo.GetValue(ctx, adminComplianceAcknowledgementKey(adminUserID))
-	if err != nil {
-		if errors.Is(err, ErrSettingNotFound) {
-			return status, nil
-		}
-		return nil, fmt.Errorf("get admin compliance acknowledgement: %w", err)
-	}
-
-	var ack AdminComplianceAcknowledgement
-	if err := json.Unmarshal([]byte(raw), &ack); err != nil {
-		return status, nil
-	}
-	if ack.Version == AdminComplianceVersion {
-		status.Required = false
-		status.Acknowledgement = &ack
 	}
 	return status, nil
 }

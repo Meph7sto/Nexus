@@ -12,9 +12,9 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	_ "modernc.org/sqlite"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/enttest"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/ent/enttest"
+	"github.com/Wei-Shaw/nexus/internal/payment"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,7 +53,7 @@ func TestHandlePaymentNotification_UnknownOrder_ReturnsSentinel(t *testing.T) {
 	}
 
 	notification := &payment.PaymentNotification{
-		OrderID: "sub2_does_not_exist_12345",
+		OrderID: "nexus_does_not_exist_12345",
 		TradeNo: "stripe_evt_test_xyz",
 		Status:  payment.NotificationStatusSuccess,
 		Amount:  1000,
@@ -83,7 +83,7 @@ func TestHandlePaymentNotification_NonSuccessStatus_Skips(t *testing.T) {
 	}
 
 	notification := &payment.PaymentNotification{
-		OrderID: "sub2_does_not_exist_12345",
+		OrderID: "nexus_does_not_exist_12345",
 		Status:  "failed", // any value other than NotificationStatusSuccess
 	}
 
@@ -100,7 +100,7 @@ func TestErrOrderNotFound_DistinctFromOtherErrors(t *testing.T) {
 	require.False(t, errors.Is(genericErr, ErrOrderNotFound))
 	require.False(t, errors.Is(ErrOrderNotFound, genericErr))
 
-	wrappedLookupErr := errors.New("lookup order failed for out_trade_no sub2_42: connection refused")
+	wrappedLookupErr := errors.New("lookup order failed for out_trade_no nexus_42: connection refused")
 	require.False(t, errors.Is(wrappedLookupErr, ErrOrderNotFound),
 		"DB connection failures must not masquerade as order-not-found")
 }

@@ -27,27 +27,27 @@ func (s *updateServiceCacheStub) SetUpdateInfo(_ context.Context, data string, _
 	return nil
 }
 
-type updateServiceGitHubClientStub struct {
-	release *GitHubRelease
+type updateServiceReleaseClientStub struct {
+	release *Release
 }
 
-func (s *updateServiceGitHubClientStub) FetchLatestRelease(context.Context, string) (*GitHubRelease, error) {
+func (s *updateServiceReleaseClientStub) FetchLatestRelease(context.Context, string) (*Release, error) {
 	return s.release, nil
 }
 
-func (s *updateServiceGitHubClientStub) DownloadFile(context.Context, string, string, int64) error {
+func (s *updateServiceReleaseClientStub) DownloadFile(context.Context, string, string, int64) error {
 	panic("DownloadFile should not be called when no update is available")
 }
 
-func (s *updateServiceGitHubClientStub) FetchChecksumFile(context.Context, string) ([]byte, error) {
+func (s *updateServiceReleaseClientStub) FetchChecksumFile(context.Context, string) ([]byte, error) {
 	panic("FetchChecksumFile should not be called when no update is available")
 }
 
 func TestUpdateServicePerformUpdateNoUpdateReturnsSentinel(t *testing.T) {
 	svc := NewUpdateService(
 		&updateServiceCacheStub{},
-		&updateServiceGitHubClientStub{
-			release: &GitHubRelease{
+		&updateServiceReleaseClientStub{
+			release: &Release{
 				TagName: "v0.1.132",
 				Name:    "v0.1.132",
 			},

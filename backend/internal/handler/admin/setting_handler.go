@@ -12,11 +12,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
-	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/handler/dto"
+	"github.com/Wei-Shaw/nexus/internal/pkg/response"
+	"github.com/Wei-Shaw/nexus/internal/server/middleware"
+	"github.com/Wei-Shaw/nexus/internal/service"
 
 	"github.com/gin-gonic/gin"
 )

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/payment"
+	"github.com/Wei-Shaw/nexus/internal/payment"
 	"github.com/wechatpay-apiv3/wechatpay-go/core"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments"
 	"github.com/wechatpay-apiv3/wechatpay-go/services/payments/h5"
@@ -340,7 +340,7 @@ func TestBuildWxpayResultURLPreservesResumeToken(t *testing.T) {
 	t.Parallel()
 
 	resultURL, err := buildWxpayResultURL("https://app.example.com/payment/result?order_id=42&resume_token=resume-42&status=success", payment.CreatePaymentRequest{
-		OrderID:     "sub2_42",
+		OrderID:     "nexus_42",
 		PaymentType: payment.TypeWxpay,
 	})
 	if err != nil {
@@ -361,8 +361,8 @@ func TestBuildWxpayResultURLPreservesResumeToken(t *testing.T) {
 	if query.Get("order_id") != "42" {
 		t.Fatalf("order_id = %q, want %q", query.Get("order_id"), "42")
 	}
-	if query.Get("out_trade_no") != "sub2_42" {
-		t.Fatalf("out_trade_no = %q, want %q", query.Get("out_trade_no"), "sub2_42")
+	if query.Get("out_trade_no") != "nexus_42" {
+		t.Fatalf("out_trade_no = %q, want %q", query.Get("out_trade_no"), "nexus_42")
 	}
 }
 
@@ -515,7 +515,7 @@ func TestCreatePaymentWithOpenIDReturnsJSAPIResult(t *testing.T) {
 	}
 
 	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
-		OrderID:     "sub2_88",
+		OrderID:     "nexus_88",
 		Amount:      "66.88",
 		PaymentType: payment.TypeWxpay,
 		NotifyURL:   "https://merchant.example/payment/notify",
@@ -595,8 +595,8 @@ func TestCreatePaymentMobileH5IncludesConfiguredSceneInfo(t *testing.T) {
 		if got := wxSV(req.SceneInfo.H5Info.Type); got != wxpayH5Type {
 			t.Fatalf("scene_info.h5_info.type = %q, want %q", got, wxpayH5Type)
 		}
-		if got := wxSV(req.SceneInfo.H5Info.AppName); got != "Sub2API" {
-			t.Fatalf("scene_info.h5_info.app_name = %q, want %q", got, "Sub2API")
+		if got := wxSV(req.SceneInfo.H5Info.AppName); got != "Nexus" {
+			t.Fatalf("scene_info.h5_info.app_name = %q, want %q", got, "Nexus")
 		}
 		if got := wxSV(req.SceneInfo.H5Info.AppUrl); got != "https://app.example.com" {
 			t.Fatalf("scene_info.h5_info.app_url = %q, want %q", got, "https://app.example.com")
@@ -610,14 +610,14 @@ func TestCreatePaymentMobileH5IncludesConfiguredSceneInfo(t *testing.T) {
 		config: map[string]string{
 			"appId":     "wx123",
 			"mchId":     "mch123",
-			"h5AppName": "Sub2API",
+			"h5AppName": "Nexus",
 			"h5AppUrl":  "https://app.example.com",
 		},
 		coreClient: &core.Client{},
 	}
 
 	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
-		OrderID:     "sub2_99",
+		OrderID:     "nexus_99",
 		Amount:      "66.88",
 		PaymentType: payment.TypeWxpay,
 		Subject:     "Balance Recharge",
@@ -680,7 +680,7 @@ func TestCreatePaymentMobileH5ReturnsNoAuthErrorWithoutNativeFallback(t *testing
 	}
 
 	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
-		OrderID:     "sub2_100",
+		OrderID:     "nexus_100",
 		Amount:      "66.88",
 		PaymentType: payment.TypeWxpay,
 		Subject:     "Balance Recharge",

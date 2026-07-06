@@ -15,7 +15,7 @@ import (
 	"github.com/imroc/req/v3"
 	"github.com/stretchr/testify/require"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 )
 
 // ── stub helpers ─────────────────────────────────────────────────────────────

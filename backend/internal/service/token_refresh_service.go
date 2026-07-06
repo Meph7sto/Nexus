@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
+	"github.com/Wei-Shaw/nexus/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/util/logredact"
 )
 
 // tokenRefreshTempUnschedDuration token 刷新重试耗尽后临时不可调度的持续时间

@@ -25,16 +25,16 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/anthropicfp"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
-	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
+	"github.com/Wei-Shaw/nexus/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/pkg/anthropicfp"
+	"github.com/Wei-Shaw/nexus/internal/pkg/claude"
+	"github.com/Wei-Shaw/nexus/internal/pkg/ctxkey"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
+	"github.com/Wei-Shaw/nexus/internal/pkg/logger"
+	"github.com/Wei-Shaw/nexus/internal/pkg/timezone"
+	"github.com/Wei-Shaw/nexus/internal/pkg/usagestats"
+	"github.com/Wei-Shaw/nexus/internal/util/responseheaders"
+	"github.com/Wei-Shaw/nexus/internal/util/urlvalidator"
 	"github.com/cespare/xxhash/v2"
 	"github.com/google/uuid"
 	gocache "github.com/patrickmn/go-cache"
@@ -76,7 +76,7 @@ IMPORTANT: You must NEVER generate or guess URLs for the user unless you are con
 	defaultModelsListCacheTTL              = 15 * time.Second
 	postUsageBillingTimeout                = 15 * time.Second
 	claudeCodeNoopDeltaKeepaliveMinVersion = "2.1.193"
-	debugGatewayBodyEnv                    = "SUB2API_DEBUG_GATEWAY_BODY"
+	debugGatewayBodyEnv                    = "NEXUS_DEBUG_GATEWAY_BODY"
 	// 上游错误体只需要提取错误 JSON/日志摘要，默认 512KiB 避免错误风暴叠加大请求体。
 	gatewayUpstreamErrorBodyReadLimit int64 = 512 << 10
 )
@@ -649,7 +649,7 @@ type GatewayService struct {
 	debugClaudeMimic      atomic.Bool
 	channelService        *ChannelService
 	resolver              *ModelPricingResolver
-	debugGatewayBodyFile  atomic.Pointer[os.File] // non-nil when SUB2API_DEBUG_GATEWAY_BODY is set
+	debugGatewayBodyFile  atomic.Pointer[os.File] // non-nil when NEXUS_DEBUG_GATEWAY_BODY is set
 	tlsFPProfileService   *TLSFingerprintProfileService
 	balanceNotifyService  *BalanceNotifyService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
@@ -728,8 +728,8 @@ func NewGatewayService(
 		&svc.userGroupRateSF,
 		"service.gateway",
 	)
-	svc.debugModelRouting.Store(parseDebugEnvBool(os.Getenv("SUB2API_DEBUG_MODEL_ROUTING")))
-	svc.debugClaudeMimic.Store(parseDebugEnvBool(os.Getenv("SUB2API_DEBUG_CLAUDE_MIMIC")))
+	svc.debugModelRouting.Store(parseDebugEnvBool(os.Getenv("NEXUS_DEBUG_MODEL_ROUTING")))
+	svc.debugClaudeMimic.Store(parseDebugEnvBool(os.Getenv("NEXUS_DEBUG_CLAUDE_MIMIC")))
 	if path := strings.TrimSpace(os.Getenv(debugGatewayBodyEnv)); path != "" {
 		svc.initDebugGatewayBodyFile(path)
 	}
@@ -1620,8 +1620,8 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 
 // SelectAccountWithLoadAwareness selects account with load-awareness and wait plan.
 // metadataUserID: 用于客户端亲和调度，从中提取客户端 ID
-// sub2apiUserID: 系统用户 ID，用于二维亲和调度
-func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, metadataUserID string, sub2apiUserID int64) (*AccountSelectionResult, error) {
+// nexusUserID: 系统用户 ID，用于二维亲和调度
+func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, metadataUserID string, nexusUserID int64) (*AccountSelectionResult, error) {
 	// 调试日志：记录调度入口参数
 	excludedIDsList := make([]int64, 0, len(excludedIDs))
 	for id := range excludedIDs {
@@ -10814,8 +10814,8 @@ func (s *GatewayService) initDebugGatewayBodyFile(path string) {
 //
 // 启用方式（环境变量）：
 //
-//	SUB2API_DEBUG_GATEWAY_BODY=1                          # 写入 gateway_debug.log
-//	SUB2API_DEBUG_GATEWAY_BODY=/tmp/gateway_debug.log     # 写入指定路径
+//	NEXUS_DEBUG_GATEWAY_BODY=1                          # 写入 gateway_debug.log
+//	NEXUS_DEBUG_GATEWAY_BODY=/tmp/gateway_debug.log     # 写入指定路径
 //
 // tag: "CLIENT_ORIGINAL" 或 "UPSTREAM_FORWARD"
 func (s *GatewayService) debugLogGatewaySnapshot(tag string, headers http.Header, body []byte, extra map[string]string) {

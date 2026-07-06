@@ -5,7 +5,7 @@
 // 1. proxy_probe_service.go: 每次探测创建新客户端
 // 2. pricing_service.go: 每次请求创建新客户端
 // 3. turnstile_service.go: 每次验证创建新客户端
-// 4. github_release_service.go: 每次请求创建新客户端
+// 4. release_service.go: 每次请求创建新客户端
 // 5. claude_usage_service.go: 每次请求创建新客户端
 //
 // 新实现使用统一的客户端池：
@@ -23,9 +23,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyurl"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/proxyutil"
-	"github.com/Wei-Shaw/sub2api/internal/util/urlvalidator"
+	"github.com/Wei-Shaw/nexus/internal/pkg/proxyurl"
+	"github.com/Wei-Shaw/nexus/internal/pkg/proxyutil"
+	"github.com/Wei-Shaw/nexus/internal/util/urlvalidator"
 )
 
 // Transport 连接池默认配置

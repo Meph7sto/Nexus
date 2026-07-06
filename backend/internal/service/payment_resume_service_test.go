@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/payment"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/nexus/internal/payment"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 )
 
 func TestNormalizeVisibleMethods(t *testing.T) {
@@ -117,7 +117,7 @@ func TestCanonicalizeReturnURLRejectsNonCanonicalPath(t *testing.T) {
 func TestBuildPaymentReturnURL(t *testing.T) {
 	t.Parallel()
 
-	got, err := buildPaymentReturnURL("https://example.com/payment/result?from=checkout#fragment", 42, "sub2_42", "resume-token")
+	got, err := buildPaymentReturnURL("https://example.com/payment/result?from=checkout#fragment", 42, "nexus_42", "resume-token")
 	if err != nil {
 		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestBuildPaymentReturnURL(t *testing.T) {
 	if query.Get("order_id") != strconv.FormatInt(42, 10) {
 		t.Fatalf("order_id = %q", query.Get("order_id"))
 	}
-	if query.Get("out_trade_no") != "sub2_42" {
+	if query.Get("out_trade_no") != "nexus_42" {
 		t.Fatalf("out_trade_no = %q", query.Get("out_trade_no"))
 	}
 	if query.Get("resume_token") != "resume-token" {
@@ -150,7 +150,7 @@ func TestBuildPaymentReturnURL(t *testing.T) {
 func TestBuildPaymentReturnURLWithoutResumeTokenStillIncludesOutTradeNo(t *testing.T) {
 	t.Parallel()
 
-	got, err := buildPaymentReturnURL("https://example.com/payment/result", 42, "sub2_42", "")
+	got, err := buildPaymentReturnURL("https://example.com/payment/result", 42, "nexus_42", "")
 	if err != nil {
 		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestBuildPaymentReturnURLWithoutResumeTokenStillIncludesOutTradeNo(t *testi
 	if query.Get("order_id") != "42" {
 		t.Fatalf("order_id = %q", query.Get("order_id"))
 	}
-	if query.Get("out_trade_no") != "sub2_42" {
+	if query.Get("out_trade_no") != "nexus_42" {
 		t.Fatalf("out_trade_no = %q", query.Get("out_trade_no"))
 	}
 	if query.Get("resume_token") != "" {
@@ -174,7 +174,7 @@ func TestBuildPaymentReturnURLWithoutResumeTokenStillIncludesOutTradeNo(t *testi
 func TestBuildPaymentReturnURLEmptyBase(t *testing.T) {
 	t.Parallel()
 
-	got, err := buildPaymentReturnURL("", 42, "sub2_42", "resume-token")
+	got, err := buildPaymentReturnURL("", 42, "nexus_42", "resume-token")
 	if err != nil {
 		t.Fatalf("buildPaymentReturnURL returned error: %v", err)
 	}
@@ -801,7 +801,7 @@ func mustCreateFallbackSignedToken(t *testing.T, claims any) string {
 		t.Fatalf("marshal claims: %v", err)
 	}
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
-	mac := hmac.New(sha256.New, []byte("sub2api-payment-resume"))
+	mac := hmac.New(sha256.New, []byte("nexus-payment-resume"))
 	_, _ = mac.Write([]byte(encodedPayload))
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	return encodedPayload + "." + signature

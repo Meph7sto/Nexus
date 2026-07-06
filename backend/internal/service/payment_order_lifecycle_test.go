@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/enttest"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/ent/enttest"
+	"github.com/Wei-Shaw/nexus/internal/payment"
+	"github.com/Wei-Shaw/nexus/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 
 	"entgo.io/ent/dialect"
@@ -181,7 +181,7 @@ func TestVerifyOrderByOutTradeNoBackfillsTradeNoFromPaidQuery(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("CHECKPAID-UPSTREAM-TRADE-NO").
-		SetOutTradeNo("sub2_checkpaid_trade_no_missing").
+		SetOutTradeNo("nexus_checkpaid_trade_no_missing").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -282,7 +282,7 @@ func TestVerifyOrderByOutTradeNoRetriesZeroAmountPaidQueryOnce(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("CHECKPAID-UPSTREAM-RETRY").
-		SetOutTradeNo("sub2_checkpaid_retry_zero_amount").
+		SetOutTradeNo("nexus_checkpaid_retry_zero_amount").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -380,7 +380,7 @@ func TestVerifyOrderByOutTradeNoRejectsPaidQueryWithZeroAmount(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("CHECKPAID-ZERO-AMOUNT").
-		SetOutTradeNo("sub2_checkpaid_zero_amount").
+		SetOutTradeNo("nexus_checkpaid_zero_amount").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -472,7 +472,7 @@ func TestVerifyOrderByOutTradeNoDoesNotCancelUnpaidUpstreamOrder(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("CHECKPAID-PENDING").
-		SetOutTradeNo("sub2_checkpaid_pending").
+		SetOutTradeNo("nexus_checkpaid_pending").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -529,7 +529,7 @@ func TestCancelOrderStillClosesUnpaidUpstreamOrder(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("CANCEL-PENDING").
-		SetOutTradeNo("sub2_cancel_pending").
+		SetOutTradeNo("nexus_cancel_pending").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -586,7 +586,7 @@ func TestReconcilePendingWxpayOrdersBackfillsPaidOrder(t *testing.T) {
 		SetPayAmount(50).
 		SetFeeRate(0).
 		SetRechargeCode("WXPAY-RECONCILE").
-		SetOutTradeNo("sub2_wxpay_reconcile").
+		SetOutTradeNo("nexus_wxpay_reconcile").
 		SetPaymentType(payment.TypeWxpay).
 		SetPaymentTradeNo("").
 		SetOrderType(payment.OrderTypeBalance).
@@ -688,7 +688,7 @@ func TestVerifyOrderByOutTradeNoUsesOutTradeNoWhenPaymentTradeNoAlreadyExistsFor
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("CHECKPAID-EXISTING-TRADE-NO").
-		SetOutTradeNo("sub2_checkpaid_use_out_trade_no").
+		SetOutTradeNo("nexus_checkpaid_use_out_trade_no").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("upstream-trade-existing").
 		SetOrderType(payment.OrderTypeBalance).
@@ -786,12 +786,12 @@ func TestPaymentOrderQueryReferenceUsesOutTradeNoForOfficialProviders(t *testing
 
 	order := &dbent.PaymentOrder{
 		PaymentType:    payment.TypeWxpay,
-		OutTradeNo:     "sub2_out_trade_no",
+		OutTradeNo:     "nexus_out_trade_no",
 		PaymentTradeNo: "wx-transaction-id",
 	}
 
-	require.Equal(t, "sub2_out_trade_no", paymentOrderQueryReference(order, &paymentOrderLifecycleQueryProvider{}))
-	require.Equal(t, "sub2_out_trade_no", paymentOrderQueryReference(order, paymentFulfillmentTestProvider{
+	require.Equal(t, "nexus_out_trade_no", paymentOrderQueryReference(order, &paymentOrderLifecycleQueryProvider{}))
+	require.Equal(t, "nexus_out_trade_no", paymentOrderQueryReference(order, paymentFulfillmentTestProvider{
 		key: payment.TypeWxpay,
 	}))
 }

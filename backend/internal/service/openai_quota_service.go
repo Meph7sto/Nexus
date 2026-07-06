@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 	"github.com/imroc/req/v3"
 )
 

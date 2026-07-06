@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Wei-Shaw/sub2api/internal/payment"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/nexus/internal/payment"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 	"github.com/wechatpay-apiv3/wechatpay-go/core"
 	"github.com/wechatpay-apiv3/wechatpay-go/core/auth/verifiers"
 	"github.com/wechatpay-apiv3/wechatpay-go/core/notify"

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/nexus/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -54,15 +54,29 @@ func (r *adminComplianceRepoStub) Delete(ctx context.Context, key string) error 
 	return nil
 }
 
-func TestAdminComplianceStatusRequiresAckWhenMissing(t *testing.T) {
+func TestAdminComplianceStatusAlwaysNotRequired(t *testing.T) {
+	// Admin compliance check is disabled — status is always not required.
 	svc := NewSettingService(&adminComplianceRepoStub{}, &config.Config{})
 
 	status, err := svc.GetAdminComplianceStatus(context.Background(), 1)
 	require.NoError(t, err)
-	require.True(t, status.Required)
+	require.False(t, status.Required)
 	require.Equal(t, AdminComplianceVersion, status.Version)
 	require.Equal(t, AdminComplianceAckPhraseZH, status.AckPhraseZH)
 	require.Equal(t, AdminComplianceDocumentPathZH, status.DocumentPathZH)
+}
+
+func TestAdminComplianceStatusNotRequiredEvenOnOldVersion(t *testing.T) {
+	// Admin compliance check is disabled — even old version acknowledgements don't trigger required.
+	old, err := json.Marshal(AdminComplianceAcknowledgement{Version: "v2026.01.01"})
+	require.NoError(t, err)
+	svc := NewSettingService(&adminComplianceRepoStub{
+		values: map[string]string{adminComplianceAcknowledgementKey(1): string(old)},
+	}, &config.Config{})
+
+	status, err := svc.GetAdminComplianceStatus(context.Background(), 1)
+	require.NoError(t, err)
+	require.False(t, status.Required)
 }
 
 func TestAcceptAdminComplianceRejectsWrongPhrase(t *testing.T) {
@@ -90,30 +104,18 @@ func TestAcceptAdminCompliancePersistsCurrentVersion(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.False(t, status.Required)
-	require.NotNil(t, status.Acknowledgement)
-	require.Equal(t, int64(42), status.Acknowledgement.AdminUserID)
-	require.Equal(t, "203.0.113.10", status.Acknowledgement.IPAddress)
 
+	// Acceptance is still persisted even though the guard is disabled.
 	var stored AdminComplianceAcknowledgement
 	require.NoError(t, json.Unmarshal([]byte(repo.values[adminComplianceAcknowledgementKey(42)]), &stored))
+	require.Equal(t, int64(42), stored.AdminUserID)
+	require.Equal(t, "203.0.113.10", stored.IPAddress)
 	require.Equal(t, AdminComplianceVersion, stored.Version)
 	require.Equal(t, AdminComplianceDocumentPathZH, stored.DocumentZH)
 }
 
-func TestAdminComplianceStatusRequiresAckOnOldVersion(t *testing.T) {
-	old, err := json.Marshal(AdminComplianceAcknowledgement{Version: "v2026.01.01"})
-	require.NoError(t, err)
-	svc := NewSettingService(&adminComplianceRepoStub{
-		values: map[string]string{adminComplianceAcknowledgementKey(1): string(old)},
-	}, &config.Config{})
-
-	status, err := svc.GetAdminComplianceStatus(context.Background(), 1)
-	require.NoError(t, err)
-	require.True(t, status.Required)
-	require.Nil(t, status.Acknowledgement)
-}
-
-func TestAdminComplianceStatusIsPerAdminUser(t *testing.T) {
+func TestAdminComplianceStatusNotRequiredForAnyUser(t *testing.T) {
+	// Admin compliance check is disabled — all users get Required=false.
 	current, err := json.Marshal(AdminComplianceAcknowledgement{
 		Version:     AdminComplianceVersion,
 		AdminUserID: 1,
@@ -129,5 +131,5 @@ func TestAdminComplianceStatusIsPerAdminUser(t *testing.T) {
 
 	statusForUserTwo, err := svc.GetAdminComplianceStatus(context.Background(), 2)
 	require.NoError(t, err)
-	require.True(t, statusForUserTwo.Required)
+	require.False(t, statusForUserTwo.Required)
 }

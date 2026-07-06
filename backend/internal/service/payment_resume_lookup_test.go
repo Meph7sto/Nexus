@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/payment"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/nexus/internal/payment"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -61,7 +61,7 @@ func TestGetPublicOrderByResumeTokenReturnsMatchingOrder(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("RESUME-ORDER").
-		SetOutTradeNo("sub2_resume_lookup").
+		SetOutTradeNo("nexus_resume_lookup").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-1").
 		SetOrderType(payment.OrderTypeBalance).
@@ -113,7 +113,7 @@ func TestGetPublicOrderByResumeTokenRejectsSnapshotMismatch(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("RESUME-MISMATCH").
-		SetOutTradeNo("sub2_resume_lookup_mismatch").
+		SetOutTradeNo("nexus_resume_lookup_mismatch").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-2").
 		SetOrderType(payment.OrderTypeBalance).
@@ -165,7 +165,7 @@ func TestGetPublicOrderByResumeTokenUsesSnapshotAuthorityWhenColumnsDiffer(t *te
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("RESUME-SNAPSHOT-AUTHORITY").
-		SetOutTradeNo("sub2_resume_snapshot_authority").
+		SetOutTradeNo("nexus_resume_snapshot_authority").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-snapshot-authority").
 		SetOrderType(payment.OrderTypeBalance).
@@ -222,7 +222,7 @@ func TestGetPublicOrderByResumeTokenChecksUpstreamForPendingOrder(t *testing.T) 
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("RESUME-PENDING").
-		SetOutTradeNo("sub2_resume_lookup_pending").
+		SetOutTradeNo("nexus_resume_lookup_pending").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-pending").
 		SetOrderType(payment.OrderTypeBalance).
@@ -277,7 +277,7 @@ func TestVerifyOrderPublicDoesNotCheckUpstreamForPendingOrder(t *testing.T) {
 		SetPayAmount(88).
 		SetFeeRate(0).
 		SetRechargeCode("PUBLIC-VERIFY").
-		SetOutTradeNo("sub2_public_verify_pending").
+		SetOutTradeNo("nexus_public_verify_pending").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-public-verify").
 		SetOrderType(payment.OrderTypeBalance).

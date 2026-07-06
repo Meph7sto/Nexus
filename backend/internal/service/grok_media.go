@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
-	"github.com/Wei-Shaw/sub2api/internal/util/responseheaders"
+	"github.com/Wei-Shaw/nexus/internal/pkg/xai"
+	"github.com/Wei-Shaw/nexus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -314,7 +314,7 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	}
 	upstreamReq.Header.Set("Authorization", "Bearer "+token)
 	upstreamReq.Header.Set("Accept", "application/json")
-	upstreamReq.Header.Set("User-Agent", "sub2api-grok/1.0")
+	upstreamReq.Header.Set("User-Agent", "nexus-grok/1.0")
 	if endpoint.RequiresRequestBody() {
 		contentType = strings.TrimSpace(contentType)
 		if contentType == "" {

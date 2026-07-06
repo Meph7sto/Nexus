@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
-	"github.com/Wei-Shaw/sub2api/internal/payment"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	"github.com/Wei-Shaw/nexus/ent/paymentauditlog"
+	"github.com/Wei-Shaw/nexus/internal/payment"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -479,14 +479,14 @@ func TestValidateProviderNotificationMetadataAllowsLegacyOrdersWithoutSnapshotFi
 func TestParseLegacyPaymentOrderID(t *testing.T) {
 	t.Parallel()
 
-	oid, ok := parseLegacyPaymentOrderID("sub2_42", &dbent.NotFoundError{})
+	oid, ok := parseLegacyPaymentOrderID("nexus_42", &dbent.NotFoundError{})
 	assert.True(t, ok)
 	assert.EqualValues(t, 42, oid)
 
 	_, ok = parseLegacyPaymentOrderID("42", &dbent.NotFoundError{})
 	assert.False(t, ok)
 
-	_, ok = parseLegacyPaymentOrderID("sub2_42", errors.New("db down"))
+	_, ok = parseLegacyPaymentOrderID("nexus_42", errors.New("db down"))
 	assert.False(t, ok)
 }
 
@@ -606,7 +606,7 @@ func TestExecuteSubscriptionFulfillmentAppliesAffiliateRebate(t *testing.T) {
 		SetPayAmount(120).
 		SetFeeRate(0).
 		SetRechargeCode("PAY-SUB-AFFILIATE").
-		SetOutTradeNo("sub2_subscription_affiliate").
+		SetOutTradeNo("nexus_subscription_affiliate").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-sub-affiliate").
 		SetOrderType(payment.OrderTypeSubscription).
@@ -692,7 +692,7 @@ func TestExecuteSubscriptionFulfillmentDoesNotDuplicateWorkAfterLegacySuccessAud
 		SetPayAmount(80).
 		SetFeeRate(0).
 		SetRechargeCode("PAY-SUB-AFFILIATE-IDEMPOTENT").
-		SetOutTradeNo("sub2_subscription_affiliate_idempotent").
+		SetOutTradeNo("nexus_subscription_affiliate_idempotent").
 		SetPaymentType(payment.TypeAlipay).
 		SetPaymentTradeNo("trade-sub-affiliate-idempotent").
 		SetOrderType(payment.OrderTypeSubscription).

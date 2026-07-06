@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
+	"github.com/Wei-Shaw/nexus/internal/pkg/xai"
 )
 
 const (
@@ -80,7 +80,7 @@ func (s *GrokQuotaService) ProbeUsage(ctx context.Context, accountID int64) (*Gr
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "sub2api-grok-quota-probe/1.0")
+	req.Header.Set("User-Agent", "nexus-grok-quota-probe/1.0")
 
 	resp, err := s.httpUpstream.Do(req, proxyURL, account.ID, maxInt(account.Concurrency, 1))
 	if err != nil {
