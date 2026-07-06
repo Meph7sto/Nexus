@@ -259,6 +259,41 @@ var (
 			},
 		},
 	}
+	// AdminPermissionsColumns holds the columns for the "admin_permissions" table.
+	AdminPermissionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "resource", Type: field.TypeString, Size: 64},
+		{Name: "actions", Type: field.TypeJSON},
+		{Name: "user_id", Type: field.TypeInt64},
+	}
+	// AdminPermissionsTable holds the schema information for the "admin_permissions" table.
+	AdminPermissionsTable = &schema.Table{
+		Name:       "admin_permissions",
+		Columns:    AdminPermissionsColumns,
+		PrimaryKey: []*schema.Column{AdminPermissionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "admin_permissions_users_admin_permissions",
+				Columns:    []*schema.Column{AdminPermissionsColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "adminpermission_user_id_resource",
+				Unique:  true,
+				Columns: []*schema.Column{AdminPermissionsColumns[5], AdminPermissionsColumns[3]},
+			},
+			{
+				Name:    "adminpermission_resource",
+				Unique:  false,
+				Columns: []*schema.Column{AdminPermissionsColumns[3]},
+			},
+		},
+	}
 	// AnnouncementsColumns holds the columns for the "announcements" table.
 	AnnouncementsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1795,6 +1830,7 @@ var (
 		APIKeysTable,
 		AccountsTable,
 		AccountGroupsTable,
+		AdminPermissionsTable,
 		AnnouncementsTable,
 		AnnouncementReadsTable,
 		AuthIdentitiesTable,
@@ -1846,6 +1882,7 @@ func init() {
 	AccountGroupsTable.Annotation = &entsql.Annotation{
 		Table: "account_groups",
 	}
+	AdminPermissionsTable.ForeignKeys[0].RefTable = UsersTable
 	AnnouncementsTable.Annotation = &entsql.Annotation{
 		Table: "announcements",
 	}
