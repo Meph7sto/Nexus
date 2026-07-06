@@ -95,6 +95,7 @@
                   {{ t("admin.settings.adminApiKey.notConfigured") }}
                 </span>
                 <button
+                  v-if="canCreate"
                   type="button"
                   @click="createAdminApiKey"
                   :disabled="adminApiKeyOperating"
@@ -145,6 +146,7 @@
                   </div>
                   <div class="flex gap-2">
                     <button
+                      v-if="canExecute"
                       type="button"
                       @click="regenerateAdminApiKey"
                       :disabled="adminApiKeyOperating"
@@ -157,6 +159,7 @@
                       }}
                     </button>
                     <button
+                      v-if="canDelete"
                       type="button"
                       @click="deleteAdminApiKey"
                       :disabled="adminApiKeyOperating"
@@ -7142,6 +7145,7 @@
         <!-- Save Button -->
         <div v-show="activeTab !== 'backup'" class="flex justify-end">
           <button
+            v-if="canUpdate"
             type="submit"
             :disabled="saving || loadFailed"
             class="btn btn-primary"
@@ -7262,6 +7266,7 @@ import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSi
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { useAppStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
+import { useAdminPermissionGate } from "@/composables/useAdminPermissionGate";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
   isRegistrationEmailSuffixDomainValid,
@@ -7279,6 +7284,7 @@ import {
 const { t, locale } = useI18n();
 const appStore = useAppStore();
 const adminSettingsStore = useAdminSettingsStore();
+const { canCreate, canUpdate, canDelete, canExecute } = useAdminPermissionGate("settings");
 const isZhLocale = computed(() => locale.value.startsWith("zh"));
 
 function localText(zh: string, en: string): string {

@@ -234,6 +234,7 @@
               </div>
               <!-- Attributes Config Button -->
               <button
+                v-if="canUpdate"
                 @click="showAttributesModal = true"
                 class="btn btn-secondary px-2 md:px-3"
                 :title="t('admin.users.attributes.configButton')"
@@ -244,7 +245,7 @@
             </div>
 
             <!-- Create User Button (full width on mobile, auto width on desktop) -->
-            <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
+            <button v-if="canCreate" data-test="create-user" @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
               <Icon name="plus" size="md" class="mr-2" />
               {{ t('admin.users.createUser') }}
             </button>
@@ -350,7 +351,7 @@
                     v-for="g in getUserGroups(row).exclusive"
                     :key="g.id"
                     class="flex cursor-pointer items-center gap-2 px-3 py-2 text-gray-700 transition-colors hover:bg-primary-50 hover:text-primary-600 dark:text-dark-200 dark:hover:bg-primary-900/30 dark:hover:text-primary-400"
-                    @click.stop="openGroupReplace(row, g)"
+                    @click.stop="canUpdate && openGroupReplace(row, g)"
                   >
                     <Icon name="swap" size="xs" class="h-3.5 w-3.5 flex-shrink-0 opacity-50" />
                     <span class="flex-1">{{ g.name }}</span>
@@ -423,6 +424,7 @@
                 </div>
               </div>
               <button
+                v-if="canUpdate"
                 @click.stop="handleDeposit(row)"
                 class="rounded px-2 py-0.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
                 :title="t('admin.users.deposit')"
@@ -589,7 +591,9 @@
             <div class="flex items-center gap-1">
               <!-- Edit Button -->
               <button
+                v-if="canUpdate"
                 @click="handleEdit(row)"
+                data-test="edit-user"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
               >
                 <Icon name="edit" size="sm" />
@@ -598,7 +602,7 @@
 
               <!-- Toggle Status Button (not for super admin) -->
               <button
-                v-if="row.role !== 'super_admin'"
+                v-if="canUpdate && row.role !== 'super_admin'"
                 @click="handleToggleStatus(row)"
                 :class="[
                   'flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors',
@@ -614,6 +618,7 @@
 
               <!-- More Actions Menu Trigger -->
               <button
+                v-if="canUpdate || canDelete || canExecute"
                 @click="openActionMenu(row, $event)"
                 class="action-menu-trigger flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white"
                 :class="{ 'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white': activeMenuId === row.id }"
@@ -629,7 +634,7 @@
               :title="t('admin.users.noUsersYet')"
               :description="t('admin.users.createFirstUser')"
               :action-text="t('admin.users.createUser')"
-              @action="showCreateModal = true"
+              @action="canCreate && (showCreateModal = true)"
             />
           </template>
         </DataTable>
@@ -669,6 +674,7 @@
 
               <!-- Allowed Groups -->
               <button
+                v-if="canUpdate"
                 @click="handleAllowedGroups(user); closeActionMenu()"
                 class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
               >
@@ -680,6 +686,7 @@
 
               <!-- Deposit -->
               <button
+                v-if="canUpdate"
                 @click="handleDeposit(user); closeActionMenu()"
                 class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
               >
@@ -689,6 +696,7 @@
 
               <!-- Withdraw -->
               <button
+                v-if="canUpdate"
                 @click="handleWithdraw(user); closeActionMenu()"
                 class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
               >
@@ -720,8 +728,9 @@
 
               <!-- Delete (not for super admin) -->
               <button
-                v-if="user.role !== 'super_admin'"
+                v-if="canDelete && user.role !== 'super_admin'"
                 @click="handleDelete(user); closeActionMenu()"
+                data-test="delete-user"
                 class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
               >
                 <Icon name="trash" size="sm" :stroke-width="2" />
@@ -755,6 +764,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAdminPermissionGate } from '@/composables/useAdminPermissionGate'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatDateTime } from '@/utils/format'
 import Icon from '@/components/icons/Icon.vue'
@@ -790,6 +800,7 @@ import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryM
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
+const { canCreate, canUpdate, canDelete, canExecute } = useAdminPermissionGate('users')
 
 const roleLabel = (role: UserRole) => {
   if (role === 'super_admin') return t('admin.users.roles.superAdmin')

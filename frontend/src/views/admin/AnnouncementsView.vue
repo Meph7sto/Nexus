@@ -30,7 +30,7 @@
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
-            <button @click="openCreateDialog" class="btn btn-primary">
+            <button v-if="canCreate" @click="openCreateDialog" class="btn btn-primary">
               <Icon name="plus" size="md" class="mr-1" />
               {{ t('admin.announcements.createAnnouncement') }}
             </button>
@@ -122,6 +122,7 @@
                 <Icon name="eye" size="sm" />
               </button>
               <button
+                v-if="canUpdate"
                 @click="openEditDialog(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-600 dark:hover:text-gray-300"
                 :title="t('common.edit')"
@@ -129,6 +130,7 @@
                 <Icon name="edit" size="sm" />
               </button>
               <button
+                v-if="canDelete"
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                 :title="t('common.delete')"
@@ -143,7 +145,7 @@
               :title="t('empty.noData')"
               :description="t('admin.announcements.failedToLoad')"
               :action-text="t('admin.announcements.createAnnouncement')"
-              @action="openCreateDialog"
+              @action="canCreate && openCreateDialog()"
             />
           </template>
         </DataTable>
@@ -247,6 +249,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAdminPermissionGate } from '@/composables/useAdminPermissionGate'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
 import { formatDateTime, formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
@@ -268,6 +271,7 @@ import AnnouncementReadStatusDialog from '@/components/admin/announcements/Annou
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const { canCreate, canUpdate, canDelete } = useAdminPermissionGate('announcements')
 
 const announcements = ref<Announcement[]>([])
 const loading = ref(false)

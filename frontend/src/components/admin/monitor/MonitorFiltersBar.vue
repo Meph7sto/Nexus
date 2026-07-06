@@ -45,6 +45,7 @@
         <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
       </button>
       <button
+        v-if="canUpdate"
         @click="$emit('manage-templates')"
         class="btn btn-secondary"
         :title="t('admin.channelMonitor.template.manageButton')"
@@ -52,7 +53,7 @@
         <Icon name="cog" size="md" class="mr-2" />
         {{ t('admin.channelMonitor.template.manageButton') }}
       </button>
-      <button @click="$emit('create')" class="btn btn-primary">
+      <button v-if="canCreate" @click="$emit('create')" class="btn btn-primary">
         <Icon name="plus" size="md" class="mr-2" />
         {{ t('admin.channelMonitor.createButton') }}
       </button>
@@ -72,9 +73,14 @@ import {
   PROVIDER_GEMINI,
 } from '@/constants/channelMonitor'
 
-defineProps<{
+withDefaults(defineProps<{
   loading: boolean
-}>()
+  canCreate?: boolean
+  canUpdate?: boolean
+}>(), {
+  canCreate: true,
+  canUpdate: true,
+})
 
 defineEmits<{
   (e: 'reload'): void

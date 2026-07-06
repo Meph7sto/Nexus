@@ -7,6 +7,8 @@
           v-model:provider="providerFilter"
           v-model:enabled="enabledFilter"
           :loading="loading"
+          :can-create="canCreate"
+          :can-update="canUpdate"
           @reload="reload"
           @create="openCreateDialog"
           @manage-templates="showTemplateManager = true"
@@ -44,13 +46,16 @@
           </template>
 
           <template #cell-enabled="{ row }">
-            <Toggle :modelValue="row.enabled" @update:modelValue="toggleEnabled(row)" />
+            <Toggle :modelValue="row.enabled" :disabled="!canUpdate" @update:modelValue="toggleEnabled(row)" />
           </template>
 
           <template #cell-actions="{ row }">
             <MonitorActionsCell
               :row="row"
               :running="runningId === row.id"
+              :can-update="canUpdate"
+              :can-delete="canDelete"
+              :can-execute="canExecute"
               @run="handleRunNow"
               @edit="openEditDialog"
               @delete="handleDelete"
@@ -62,7 +67,7 @@
               :title="t('admin.channelMonitor.noMonitorsYet')"
               :description="t('admin.channelMonitor.createFirstMonitor')"
               :action-text="t('admin.channelMonitor.createButton')"
-              @action="openCreateDialog"
+              @action="canCreate && openCreateDialog()"
             />
           </template>
         </DataTable>
@@ -116,6 +121,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAdminPermissionGate } from '@/composables/useAdminPermissionGate'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { adminAPI } from '@/api/admin'
 import type {
@@ -145,6 +151,7 @@ import { useChannelMonitorFormat } from '@/composables/useChannelMonitorFormat'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const { canCreate, canUpdate, canDelete, canExecute } = useAdminPermissionGate('channel_monitor')
 const {
   providerLabel,
   providerBadgeClass,

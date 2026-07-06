@@ -18,6 +18,10 @@ const {
   getBatchUserAttributes: vi.fn()
 }))
 
+const authStoreMock = vi.hoisted(() => ({
+  canAdmin: vi.fn(() => true)
+}))
+
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     users: {
@@ -43,6 +47,10 @@ vi.mock('@/stores/app', () => ({
     showError: vi.fn(),
     showSuccess: vi.fn()
   })
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authStoreMock
 }))
 
 vi.mock('vue-i18n', async () => {
@@ -116,6 +124,8 @@ describe('admin UsersView', () => {
     getBatchUsersUsage.mockResolvedValue({ stats: {} })
     listEnabledDefinitions.mockResolvedValue([])
     getBatchUserAttributes.mockResolvedValue({ values: {} })
+    authStoreMock.canAdmin.mockReset()
+    authStoreMock.canAdmin.mockReturnValue(true)
   })
 
   afterEach(() => {
@@ -263,5 +273,54 @@ describe('admin UsersView', () => {
       }),
       expect.any(Object)
     )
+  })
+
+  it('hides create, edit, delete, export, and execute controls for users view-only admins', async () => {
+    authStoreMock.canAdmin.mockImplementation((resource: string, action: string) => resource === 'users' && action === 'view')
+
+    const wrapper = mount(UsersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: {
+            props: ['columns', 'data'],
+            template: `
+              <div>
+                <div v-for="row in data" :key="row.id">
+                  <slot name="cell-actions" :row="row" />
+                </div>
+              </div>
+            `
+          },
+          Pagination: true,
+          ConfirmDialog: true,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserCreateModal: true,
+          UserEditModal: true,
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="create-user"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="edit-user"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="delete-user"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="export-users"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="batch-concurrency"]').exists()).toBe(false)
   })
 })
