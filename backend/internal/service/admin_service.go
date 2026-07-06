@@ -135,26 +135,30 @@ type AdminService interface {
 
 // CreateUserInput represents input for creating a new user via admin operations.
 type CreateUserInput struct {
-	Email         string
-	Password      string
-	Username      string
-	Notes         string
-	Balance       *float64
-	Concurrency   int
-	RPMLimit      int
-	AllowedGroups []int64
+	Email            string
+	Password         string
+	Username         string
+	Notes            string
+	Role             string
+	Balance          *float64
+	Concurrency      int
+	RPMLimit         int
+	AllowedGroups    []int64
+	AdminPermissions []AdminPermission
 }
 
 type UpdateUserInput struct {
-	Email         string
-	Password      string
-	Username      *string
-	Notes         *string
-	Balance       *float64 // 使用指针区分"未提供"和"设置为0"
-	Concurrency   *int     // 使用指针区分"未提供"和"设置为0"
-	RPMLimit      *int     // 使用指针区分"未提供"和"设置为0"
-	Status        string
-	AllowedGroups *[]int64 // 使用指针区分"未提供"和"设置为空数组"
+	Email            string
+	Password         string
+	Username         *string
+	Notes            *string
+	Role             *string
+	Balance          *float64 // 使用指针区分"未提供"和"设置为0"
+	Concurrency      *int     // 使用指针区分"未提供"和"设置为0"
+	RPMLimit         *int     // 使用指针区分"未提供"和"设置为0"
+	Status           string
+	AllowedGroups    *[]int64 // 使用指针区分"未提供"和"设置为空数组"
+	AdminPermissions *[]AdminPermission
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates map[int64]*float64
@@ -580,6 +584,7 @@ type adminServiceImpl struct {
 	userSubRepo          UserSubscriptionRepository
 	privacyClientFactory PrivacyClientFactory
 	runtimeBlocker       AccountRuntimeBlocker
+	adminPermissionRepo  AdminPermissionRepository
 }
 
 type userGroupRateBatchReader interface {
@@ -606,7 +611,12 @@ func NewAdminService(
 	userSubRepo UserSubscriptionRepository,
 	privacyClientFactory PrivacyClientFactory,
 	runtimeBlocker AccountRuntimeBlocker,
+	adminPermissionRepo ...AdminPermissionRepository,
 ) AdminService {
+	var permissionRepo AdminPermissionRepository
+	if len(adminPermissionRepo) > 0 {
+		permissionRepo = adminPermissionRepo[0]
+	}
 	return &adminServiceImpl{
 		userRepo:             userRepo,
 		groupRepo:            groupRepo,
@@ -626,6 +636,7 @@ func NewAdminService(
 		userSubRepo:          userSubRepo,
 		privacyClientFactory: privacyClientFactory,
 		runtimeBlocker:       runtimeBlocker,
+		adminPermissionRepo:  permissionRepo,
 	}
 }
 
@@ -724,11 +735,21 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 		balance = s.settingService.GetDefaultBalance(ctx)
 	}
 
+	role := strings.TrimSpace(input.Role)
+	if role == "" {
+		role = RoleUser
+	}
+	switch role {
+	case RoleUser, RoleAdmin, RoleSuperAdmin:
+	default:
+		return nil, infraerrors.BadRequest("INVALID_ROLE_TRANSITION", "invalid role")
+	}
+
 	user := &User{
 		Email:         input.Email,
 		Username:      input.Username,
 		Notes:         input.Notes,
-		Role:          RoleUser, // Always create as regular user, never admin
+		Role:          role,
 		Balance:       balance,
 		Concurrency:   input.Concurrency,
 		RPMLimit:      input.RPMLimit,
@@ -738,8 +759,33 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
 	}
-	if err := s.userRepo.Create(ctx, user); err != nil {
+	create := func(opCtx context.Context) error {
+		if err := s.userRepo.Create(opCtx, user); err != nil {
+			return err
+		}
+		return s.persistAdminPermissionsForRole(opCtx, user.ID, user.Role, &input.AdminPermissions)
+	}
+	if s.entClient != nil {
+		tx, err := s.entClient.Tx(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = tx.Rollback() }()
+		if err := create(dbent.NewTxContext(ctx, tx)); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+	} else if err := create(ctx); err != nil {
 		return nil, err
+	}
+	if user.Role == RoleAdmin && s.adminPermissionRepo != nil {
+		perms, err := s.adminPermissionRepo.ListByUserID(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		user.AdminPermissions = perms
 	}
 	s.assignDefaultSubscriptions(ctx, user.ID)
 	return user, nil
@@ -777,9 +823,9 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		return nil, err
 	}
 
-	// Protect admin users: cannot disable admin accounts
-	if user.Role == "admin" && input.Status == "disabled" {
-		return nil, errors.New("cannot disable admin user")
+	// Protect super administrators: cannot disable super admin accounts
+	if user.IsSuperAdmin() && input.Status == StatusDisabled {
+		return nil, errors.New("cannot disable super administrator")
 	}
 
 	oldConcurrency := user.Concurrency
@@ -803,6 +849,15 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if input.Notes != nil {
 		user.Notes = *input.Notes
 	}
+	if input.Role != nil {
+		role := strings.TrimSpace(*input.Role)
+		switch role {
+		case RoleUser, RoleAdmin, RoleSuperAdmin:
+			user.Role = role
+		default:
+			return nil, infraerrors.BadRequest("INVALID_ROLE_TRANSITION", "invalid role")
+		}
+	}
 
 	if input.Status != "" {
 		user.Status = input.Status
@@ -820,7 +875,25 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		user.AllowedGroups = *input.AllowedGroups
 	}
 
-	if err := s.userRepo.Update(ctx, user); err != nil {
+	persist := func(opCtx context.Context) error {
+		if err := s.userRepo.Update(opCtx, user); err != nil {
+			return err
+		}
+		return s.persistAdminPermissionsForRole(opCtx, user.ID, user.Role, input.AdminPermissions)
+	}
+	if s.entClient != nil {
+		tx, err := s.entClient.Tx(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = tx.Rollback() }()
+		if err := persist(dbent.NewTxContext(ctx, tx)); err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+	} else if err := persist(ctx); err != nil {
 		return nil, err
 	}
 
@@ -837,6 +910,15 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.RPMLimit != oldRPMLimit || !sameInt64Set(user.AllowedGroups, oldAllowedGroups) {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
+	}
+	if user.Role == RoleAdmin && s.adminPermissionRepo != nil {
+		perms, err := s.adminPermissionRepo.ListByUserID(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		user.AdminPermissions = perms
+	} else {
+		user.AdminPermissions = nil
 	}
 
 	concurrencyDiff := user.Concurrency - oldConcurrency
@@ -861,6 +943,21 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 
 	return user, nil
+}
+
+func (s *adminServiceImpl) persistAdminPermissionsForRole(ctx context.Context, userID int64, role string, permissions *[]AdminPermission) error {
+	if s.adminPermissionRepo == nil {
+		return nil
+	}
+	switch role {
+	case RoleUser, RoleSuperAdmin:
+		return s.adminPermissionRepo.DeleteForUser(ctx, userID)
+	case RoleAdmin:
+		if permissions != nil {
+			return s.adminPermissionRepo.ReplaceForUser(ctx, userID, *permissions)
+		}
+	}
+	return nil
 }
 
 func sameInt64Set(a, b []int64) bool {
@@ -889,8 +986,8 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	if user.Role == "admin" {
-		return errors.New("cannot delete admin user")
+	if user.IsSuperAdmin() {
+		return errors.New("cannot delete super administrator")
 	}
 
 	apiKeys, err := s.listUserAPIKeysForDeletion(ctx, id)

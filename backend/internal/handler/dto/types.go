@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type User struct {
@@ -34,6 +35,8 @@ type User struct {
 
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`
+
+	AdminPermissions []service.AdminPermission `json:"admin_permissions,omitempty"`
 }
 
 // AdminUser 是管理员接口使用的 user DTO（包含敏感/内部字段）。
