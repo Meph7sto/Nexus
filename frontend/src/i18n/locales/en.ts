@@ -412,6 +412,7 @@ export default {
  availableChannels: 'Available Channels',
  subscriptions: 'Subscriptions',
  accounts: 'Accounts',
+ openAIQuotaSummary: 'OpenAI Quota Summary',
  proxies: 'Proxies',
  redeemCodes: 'Redeem Codes',
  ops: 'Ops',
@@ -3113,6 +3114,14 @@ export default {
  },
  tip: 'Tip: Only groups with billing type "Subscription" and status "Active" appear in the group dropdown. If no options are available, create one in Group Management first.'
  }
+ },
+
+ openAIQuotaSummary: {
+ title: 'OpenAI Quota Summary',
+ description: 'View OpenAI/Codex quota status by group and account type',
+ current: 'Current',
+ hoursLater: 'Hours later',
+ daysLater: 'Days later'
  },
 
  // Accounts

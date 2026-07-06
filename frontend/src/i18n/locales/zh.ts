@@ -412,6 +412,7 @@ export default {
  availableChannels: '可用渠道',
  subscriptions: '订阅管理',
  accounts: '账号管理',
+ openAIQuotaSummary: 'OpenAI 额度汇总',
  proxies: 'IP管理',
  redeemCodes: '兑换码',
  ops: '运维监控',
@@ -3188,6 +3189,14 @@ export default {
  },
  tip: '提示：订阅分组下拉列表中只会显示计费类型为「订阅」且状态为「正常」的分组。如果没有可选项，请先到分组管理中创建。'
  }
+ },
+
+ openAIQuotaSummary: {
+ title: 'OpenAI 额度汇总',
+ description: '按分区和账号类型查看 OpenAI/Codex 额度状态',
+ current: '当前',
+ hoursLater: '小时后',
+ daysLater: '天后'
  },
 
  // Accounts Management

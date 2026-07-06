@@ -501,6 +501,18 @@ const routes: RouteRecordRaw[] = [
  }
  },
  {
+ path: '/admin/openai-quota-summary',
+ name: 'AdminOpenAIQuotaSummary',
+ component: () => import('@/views/admin/OpenAIQuotaSummaryView.vue'),
+ meta: {
+ requiresAuth: true,
+ requiresAdmin: true,
+ title: 'OpenAI Quota Summary',
+ titleKey: 'admin.openAIQuotaSummary.title',
+ descriptionKey: 'admin.openAIQuotaSummary.description'
+ }
+ },
+ {
  path: '/admin/announcements',
  name: 'AdminAnnouncements',
  component: () => import('@/views/admin/AnnouncementsView.vue'),
