@@ -458,6 +458,9 @@ const showDatePicker = ref(false)
 const resultData = ref<any>(null)
 const now = ref(new Date())
 let resetTimer: ReturnType<typeof setInterval> | null = null
+let ringAnimationStopped = false
+let ringAnimationTimeouts: ReturnType<typeof setTimeout>[] = []
+let ringAnimationFrameIds: number[] = []
 
 // ==================== Date Range State ====================
 
@@ -552,13 +555,52 @@ function getRingOffset(ring: RingItem): number {
   return CIRCUMFERENCE - (Math.min(ring.pct, 100) / 100) * CIRCUMFERENCE
 }
 
+function clearRingAnimationTimers() {
+  ringAnimationTimeouts.forEach(timeoutId => clearTimeout(timeoutId))
+  ringAnimationTimeouts = []
+  ringAnimationFrameIds.forEach(frameId => {
+    if (typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(frameId)
+    } else {
+      clearTimeout(frameId)
+    }
+  })
+  ringAnimationFrameIds = []
+}
+
+function scheduleRingTimeout(callback: () => void, delay: number) {
+  const timeoutId = setTimeout(() => {
+    ringAnimationTimeouts = ringAnimationTimeouts.filter(id => id !== timeoutId)
+    callback()
+  }, delay)
+  ringAnimationTimeouts.push(timeoutId)
+}
+
+function scheduleRingFrame(callback: FrameRequestCallback) {
+  if (typeof requestAnimationFrame !== 'function') {
+    scheduleRingTimeout(() => callback(performance.now()), 16)
+    return
+  }
+
+  const frameId = requestAnimationFrame((time) => {
+    ringAnimationFrameIds = ringAnimationFrameIds.filter(id => id !== frameId)
+    callback(time)
+  })
+  ringAnimationFrameIds.push(frameId)
+}
+
 function triggerRingAnimation(items: RingItem[]) {
+  ringAnimationStopped = false
+  clearRingAnimationTimers()
   ringAnimated.value = false
   displayPcts.value = items.map(() => 0)
 
   nextTick(() => {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
+    if (ringAnimationStopped) return
+    scheduleRingFrame(() => {
+      if (ringAnimationStopped) return
+      scheduleRingTimeout(() => {
+        if (ringAnimationStopped) return
         ringAnimated.value = true
 
         // Animate percentage numbers
@@ -571,9 +613,9 @@ function triggerRingAnimation(items: RingItem[]) {
           const p = Math.min(elapsed / duration, 1)
           const ease = 1 - Math.pow(1 - p, 3)
           displayPcts.value = targets.map(target => Math.round(ease * target))
-          if (p < 1) requestAnimationFrame(tick)
+          if (p < 1 && !ringAnimationStopped) scheduleRingFrame(tick)
         }
-        requestAnimationFrame(tick)
+        scheduleRingFrame(tick)
       }, 50)
     })
   })
@@ -935,6 +977,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (resetTimer) clearInterval(resetTimer)
+  ringAnimationStopped = true
+  clearRingAnimationTimers()
 })
 </script>
 
