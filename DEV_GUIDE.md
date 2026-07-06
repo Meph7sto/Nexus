@@ -1,4 +1,4 @@
-# sub2api 项目开发指南
+﻿# nexus 项目开发指南
 
 > 本文档记录项目环境配置、常见坑点和注意事项，供 Claude Code 和团队成员参考。
 
@@ -6,8 +6,6 @@
 
 | 项目 | 说明 |
 |------|------|
-| **上游仓库** | Wei-Shaw/sub2api |
-| **Fork 仓库** | bayma888/sub2api-bmai |
 | **技术栈** | Go 后端 (Ent ORM + Gin) + Vue3 前端 (pnpm) |
 | **数据库** | PostgreSQL 16 + Redis |
 | **包管理** | 后端: go modules, 前端: **pnpm**（不是 npm） |
@@ -21,7 +19,7 @@
 | 端口 | 5432 |
 | psql 路径 | `C:\Program Files\PostgreSQL\16\bin\psql.exe` |
 | pg_hba.conf | `C:\Program Files\PostgreSQL\16\data\pg_hba.conf` |
-| 数据库凭据 | user=`sub2api`, password=`sub2api`, dbname=`sub2api` |
+| 数据库凭据 | user=`nexus`, password=`nexus`, dbname=`nexus` |
 | 超级用户 | user=`postgres`, password=`postgres` |
 
 ### Redis
@@ -41,22 +39,8 @@ go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7
 npm install -g pnpm
 ```
 
-## 三、CI/CD 流水线
+## 三、本地测试命令
 
-### GitHub Actions Workflows
-
-| Workflow | 触发条件 | 检查内容 |
-|----------|----------|----------|
-| **backend-ci.yml** | push, pull_request | 单元测试 + 集成测试 + golangci-lint v2.7 |
-| **security-scan.yml** | push, pull_request, 每周一 | govulncheck + gosec + pnpm audit |
-| **release.yml** | tag `v*` | 构建发布（PR 不触发） |
-
-### CI 要求
-
-- Go 版本必须是 **1.25.7**
-- 前端使用 `pnpm install --frozen-lockfile`，必须提交 `pnpm-lock.yaml`
-
-### 本地测试命令
 
 ```bash
 # 后端单元测试
@@ -114,7 +98,7 @@ psql -c "INSERT INTO users ... VALUES ('$2a$10$...')"
 
 # 正确做法
 echo "INSERT INTO users ... VALUES ('\$2a\$10\$...')" > temp.sql
-psql -U sub2api -h 127.0.0.1 -d sub2api -f temp.sql
+psql -U nexus -h 127.0.0.1 -d nexus -f temp.sql
 ```
 
 ---
@@ -148,7 +132,7 @@ psql -f "C:\temp.sql"
 3. 无密码登录并重置
    ```bash
    psql -U postgres -h 127.0.0.1
-   ALTER USER sub2api WITH PASSWORD 'sub2api';
+   ALTER USER nexus WITH PASSWORD 'nexus';
    ALTER USER postgres WITH PASSWORD 'postgres';
    ```
 4. 改回 `scram-sha-256` 并重启
@@ -227,7 +211,7 @@ git add ent/       # 生成的文件也要提交
 
 **关键经验**：
 - 如果某模型已被软件内置默认映射覆盖，通常不需要额外再加透传；
-- 但当上游模型更新快于本仓库默认映射时，**手动批量添加透传映射**是最简单、最低风险的临时兜底方案；
+- 但当上游模型更新快于当前默认映射时，**手动批量添加透传映射**是最简单、最低风险的临时兜底方案；
 - 批量操作前尽量按平台分组，不要混选不同平台账号。
 
 ---
@@ -249,7 +233,7 @@ git add ent/       # 生成的文件也要提交
 
 ```bash
 # 连接数据库
-psql -U sub2api -h 127.0.0.1 -d sub2api
+psql -U nexus -h 127.0.0.1 -d nexus
 
 # 查看所有用户
 psql -U postgres -h 127.0.0.1 -c "\du"
@@ -258,7 +242,7 @@ psql -U postgres -h 127.0.0.1 -c "\du"
 psql -U postgres -h 127.0.0.1 -c "\l"
 
 # 执行 SQL 文件
-psql -U sub2api -h 127.0.0.1 -d sub2api -f migration.sql
+psql -U nexus -h 127.0.0.1 -d nexus -f migration.sql
 ```
 
 ### Git 操作
@@ -313,7 +297,7 @@ golangci-lint run ./...
 ## 六、项目结构速览
 
 ```
-sub2api-bmai/
+nexus-bmai/
 ├── backend/
 │   ├── cmd/server/          # 主程序入口
 │   ├── ent/                 # Ent ORM 生成代码
@@ -340,7 +324,6 @@ sub2api-bmai/
 
 ## 七、参考资源
 
-- [上游仓库](https://github.com/Wei-Shaw/sub2api)
 - [Ent 文档](https://entgo.io/docs/getting-started)
 - [Vue3 文档](https://vuejs.org/)
 - [pnpm 文档](https://pnpm.io/)
