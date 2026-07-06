@@ -33,6 +33,47 @@
         <label class="input-label">{{ t('admin.users.notes') }}</label>
         <textarea v-model="form.notes" rows="3" class="input"></textarea>
       </div>
+      <div v-if="canEditAdminPermissions">
+        <label class="input-label">{{ t('admin.users.columns.role') }}</label>
+        <select v-model="form.role" data-test="role-select" class="input">
+          <option value="user">{{ t('admin.users.roles.user') }}</option>
+          <option value="admin">{{ t('admin.users.roles.admin') }}</option>
+          <option value="super_admin">{{ t('admin.users.roles.superAdmin') }}</option>
+        </select>
+      </div>
+      <section v-if="canEditAdminPermissions && form.role === 'admin'" class="space-y-3">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Administrator Permissions</h3>
+        <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-700">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
+              <tr>
+                <th class="px-3 py-2 text-left">Module</th>
+                <th v-for="action in ADMIN_PERMISSION_ACTIONS" :key="action" class="px-3 py-2 text-center">
+                  {{ action }}
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
+              <tr v-for="row in assignablePermissionRows" :key="row.resource">
+                <td class="px-3 py-2 font-medium text-gray-700 dark:text-dark-200">{{ row.label }}</td>
+                <td v-for="action in ADMIN_PERMISSION_ACTIONS" :key="action" class="px-3 py-2 text-center">
+                  <input
+                    v-if="row.actions.includes(action)"
+                    type="checkbox"
+                    class="h-4 w-4 rounded border-gray-300"
+                    :data-test="`perm-${row.resource}-${action}`"
+                    :checked="hasPermission(row.resource, action)"
+                    @change="setPermission(row.resource, action, ($event.target as HTMLInputElement).checked)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <p v-if="canEditAdminPermissions && form.role === 'super_admin'" class="input-hint">
+        Super administrators have all permissions.
+      </p>
       <div>
         <label class="input-label">{{ t('admin.users.columns.concurrency') }}</label>
         <input v-model.number="form.concurrency" type="number" class="input" />
@@ -63,26 +104,77 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { computed, ref, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
 import { adminAPI } from '@/api/admin'
-import type { AdminUser, UserAttributeValuesMap } from '@/types'
+import { ADMIN_PERMISSION_ACTIONS } from '@/utils/adminPermissions'
+import type { AdminPermission, AdminPermissionAction, AdminPermissionResource, AdminUser, UserAttributeValuesMap, UserRole } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import UserAttributeForm from '@/components/user/UserAttributeForm.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{ show: boolean, user: AdminUser | null }>()
 const emit = defineEmits(['close', 'success'])
-const { t } = useI18n(); const appStore = useAppStore(); const { copyToClipboard } = useClipboard()
+const { t } = useI18n(); const appStore = useAppStore(); const authStore = useAuthStore(); const { copyToClipboard } = useClipboard()
 
 const submitting = ref(false); const passwordCopied = ref(false)
-const form = reactive({ email: '', password: '', username: '', notes: '', concurrency: 1, rpm_limit: 0, customAttributes: {} as UserAttributeValuesMap })
+const canEditAdminPermissions = computed(() => authStore.isSuperAdmin)
+const fullActions: AdminPermissionAction[] = [...ADMIN_PERMISSION_ACTIONS]
+const assignablePermissionRows: Array<{ resource: AdminPermissionResource; label: string; actions: AdminPermissionAction[] }> = [
+  { resource: 'dashboard', label: 'Dashboard', actions: ['view', 'execute'] },
+  { resource: 'ops', label: 'Ops', actions: fullActions },
+  { resource: 'users', label: 'Users', actions: fullActions },
+  { resource: 'groups', label: 'Groups', actions: fullActions },
+  { resource: 'channels', label: 'Channels', actions: fullActions },
+  { resource: 'channel_monitor', label: 'Channel Monitor', actions: fullActions },
+  { resource: 'subscriptions', label: 'Subscriptions', actions: fullActions },
+  { resource: 'accounts', label: 'Accounts', actions: fullActions },
+  { resource: 'announcements', label: 'Announcements', actions: fullActions },
+  { resource: 'proxies', label: 'Proxies', actions: fullActions },
+  { resource: 'risk_control', label: 'Risk Control', actions: fullActions },
+  { resource: 'redeem_codes', label: 'Redeem Codes', actions: fullActions },
+  { resource: 'promo_codes', label: 'Promo Codes', actions: fullActions },
+  { resource: 'affiliates', label: 'Affiliates', actions: fullActions },
+  { resource: 'orders', label: 'Orders', actions: fullActions },
+  { resource: 'usage', label: 'Usage', actions: ['view', 'export', 'delete', 'execute'] },
+  { resource: 'data_management', label: 'Data Management', actions: fullActions },
+  { resource: 'backups', label: 'Backups', actions: fullActions },
+  { resource: 'user_attributes', label: 'User Attributes', actions: fullActions },
+  { resource: 'error_passthrough_rules', label: 'Error Passthrough Rules', actions: fullActions },
+  { resource: 'tls_fingerprint_profiles', label: 'TLS Fingerprint Profiles', actions: fullActions },
+  { resource: 'scheduled_tests', label: 'Scheduled Tests', actions: fullActions },
+]
+const form = reactive({
+  email: '',
+  password: '',
+  username: '',
+  notes: '',
+  role: 'user' as UserRole,
+  concurrency: 1,
+  rpm_limit: 0,
+  customAttributes: {} as UserAttributeValuesMap,
+  admin_permissions: [] as AdminPermission[],
+})
 
 watch(() => props.user, (u) => {
   if (u) {
-    Object.assign(form, { email: u.email, password: '', username: u.username || '', notes: u.notes || '', concurrency: u.concurrency, rpm_limit: u.rpm_limit ?? 0, customAttributes: {} })
+    Object.assign(form, {
+      email: u.email,
+      password: '',
+      username: u.username || '',
+      notes: u.notes || '',
+      role: u.role,
+      concurrency: u.concurrency,
+      rpm_limit: u.rpm_limit ?? 0,
+      customAttributes: {},
+      admin_permissions: (u.admin_permissions ?? []).map((perm) => ({
+        resource: perm.resource,
+        actions: [...perm.actions],
+      })),
+    })
     passwordCopied.value = false
   }
 }, { immediate: true })
@@ -97,6 +189,37 @@ const copyPassword = async () => {
     passwordCopied.value = true; setTimeout(() => passwordCopied.value = false, 2000)
   }
 }
+
+function hasPermission(resource: AdminPermissionResource, action: AdminPermissionAction): boolean {
+  return form.admin_permissions.some((perm) => perm.resource === resource && perm.actions.includes(action))
+}
+
+function setPermission(resource: AdminPermissionResource, action: AdminPermissionAction, checked: boolean): void {
+  let perm = form.admin_permissions.find((item) => item.resource === resource)
+  if (!perm) {
+    perm = { resource, actions: [] }
+    form.admin_permissions.push(perm)
+  }
+  const actions = new Set(perm.actions)
+  if (checked) {
+    actions.add(action)
+    if (action !== 'view') actions.add('view')
+  } else {
+    actions.delete(action)
+    if (action === 'view') actions.clear()
+  }
+  perm.actions = Array.from(actions)
+  const rowIndex = form.admin_permissions.findIndex((item) => item.resource === resource)
+  if (perm.actions.length === 0 && rowIndex >= 0) {
+    form.admin_permissions.splice(rowIndex, 1)
+  }
+}
+
+function buildAdminPermissionsPayload(): AdminPermission[] {
+  if (form.role !== 'admin') return []
+  return form.admin_permissions.map((perm) => ({ resource: perm.resource, actions: [...perm.actions] }))
+}
+
 const handleUpdateUser = async () => {
   if (!props.user) return
   if (!form.email.trim()) {
@@ -111,6 +234,10 @@ const handleUpdateUser = async () => {
   try {
     const data: any = { email: form.email, username: form.username, notes: form.notes, concurrency: form.concurrency, rpm_limit: form.rpm_limit }
     if (form.password.trim()) data.password = form.password.trim()
+    if (canEditAdminPermissions.value) {
+      data.role = form.role
+      data.admin_permissions = buildAdminPermissionsPayload()
+    }
     await adminAPI.users.update(props.user.id, data)
     if (Object.keys(form.customAttributes).length > 0) await adminAPI.userAttributes.updateUserAttributeValues(props.user.id, form.customAttributes)
     appStore.showSuccess(t('admin.users.userUpdated'))

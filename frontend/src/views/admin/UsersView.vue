@@ -28,6 +28,7 @@
                 v-model="filters.role"
                 :options="[
                   { value: '', label: t('admin.users.allRoles') },
+                  { value: 'super_admin', label: t('admin.users.roles.superAdmin') },
                   { value: 'admin', label: t('admin.users.admin') },
                   { value: 'user', label: t('admin.users.user') }
                 ]"
@@ -311,8 +312,8 @@
           </template>
 
           <template #cell-role="{ value }">
-            <span :class="['badge', value === 'admin' ? 'badge-purple' : 'badge-gray']">
-              {{ t('admin.users.roles.' + value) }}
+            <span :class="['badge', roleBadgeClass(value)]">
+              {{ roleLabel(value) }}
             </span>
           </template>
 
@@ -595,9 +596,9 @@
                 <span class="text-xs">{{ t('common.edit') }}</span>
               </button>
 
-              <!-- Toggle Status Button (not for admin) -->
+              <!-- Toggle Status Button (not for super admin) -->
               <button
-                v-if="row.role !== 'admin'"
+                v-if="row.role !== 'super_admin'"
                 @click="handleToggleStatus(row)"
                 :class="[
                   'flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors',
@@ -717,9 +718,9 @@
 
               <div class="my-1 border-t border-gray-100 dark:border-dark-700"></div>
 
-              <!-- Delete (not for admin) -->
+              <!-- Delete (not for super admin) -->
               <button
-                v-if="user.role !== 'admin'"
+                v-if="user.role !== 'super_admin'"
                 @click="handleDelete(user); closeActionMenu()"
                 class="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
               >
@@ -760,7 +761,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
-import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
+import type { AdminUser, AdminGroup, UserAttributeDefinition, UserRole } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
 import type { PlatformQuotaItem } from '@/api/admin/users'
 import type { Column } from '@/components/common/types'
@@ -789,6 +790,18 @@ import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryM
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
+
+const roleLabel = (role: UserRole) => {
+  if (role === 'super_admin') return t('admin.users.roles.superAdmin')
+  if (role === 'admin') return t('admin.users.roles.admin')
+  return t('admin.users.roles.user')
+}
+
+const roleBadgeClass = (role: UserRole) => {
+  if (role === 'super_admin') return 'badge-danger'
+  if (role === 'admin') return 'badge-purple'
+  return 'badge-gray'
+}
 
 // Generate dynamic attribute columns from enabled definitions
 const attributeColumns = computed<Column[]>(() =>
