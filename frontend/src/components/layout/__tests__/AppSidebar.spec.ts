@@ -10,23 +10,23 @@ const stylePath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../sty
 const styleSource = readFileSync(stylePath, 'utf8')
 
 describe('AppSidebar custom SVG styles', () => {
-  it('does not override uploaded SVG fill or stroke colors', () => {
-    expect(componentSource).toContain('.sidebar-svg-icon {')
-    expect(componentSource).toContain('color: currentColor;')
-    expect(componentSource).toContain('display: block;')
-    expect(componentSource).not.toContain('stroke: currentColor;')
-    expect(componentSource).not.toContain('fill: none;')
-  })
+ it('does not override uploaded SVG fill or stroke colors', () => {
+ expect(componentSource).toContain('.sidebar-svg-icon {')
+ expect(componentSource).toContain('color: currentColor;')
+ expect(componentSource).toContain('display: block;')
+ expect(componentSource).not.toContain('stroke: currentColor;')
+ expect(componentSource).not.toContain('fill: none;')
+ })
 })
 
 describe('AppSidebar header styles', () => {
-  it('does not clip the version badge dropdown', () => {
-    const sidebarHeaderBlockMatch = styleSource.match(/\.sidebar-header\s*\{[\s\S]*?\n {2}\}/)
-    const sidebarBrandBlockMatch = componentSource.match(/\.sidebar-brand\s*\{[\s\S]*?\n\}/)
+ it('does not clip the version badge dropdown', () => {
+ const sidebarHeaderBlockMatch = styleSource.match(/\.sidebar-header\s*\{[\s\S]*?\n {2}\}/)
+ const sidebarBrandBlockMatch = componentSource.match(/\.sidebar-brand\s*\{[\s\S]*?\n\}/)
 
-    expect(sidebarHeaderBlockMatch).not.toBeNull()
-    expect(sidebarBrandBlockMatch).not.toBeNull()
-    expect(sidebarHeaderBlockMatch?.[0]).not.toContain('@apply overflow-hidden;')
-    expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
-  })
+ expect(sidebarHeaderBlockMatch).not.toBeNull()
+ expect(sidebarBrandBlockMatch).not.toBeNull()
+ expect(sidebarHeaderBlockMatch?.[0]).not.toContain('@apply overflow-hidden;')
+ expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
+ })
 })

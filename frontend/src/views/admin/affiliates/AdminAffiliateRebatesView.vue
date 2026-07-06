@@ -1,5 +1,5 @@
 <template>
-  <AdminAffiliateRecordsTable type="rebates" />
+ <AdminAffiliateRecordsTable type="rebates" />
 </template>
 
 <script setup lang="ts">

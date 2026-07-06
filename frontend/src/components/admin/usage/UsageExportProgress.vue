@@ -1,12 +1,12 @@
 <template>
-  <ExportProgressDialog
-    :show="show"
-    :progress="progress"
-    :current="current"
-    :total="total"
-    :estimated-time="estimatedTime"
-    @cancel="$emit('cancel')"
-  />
+ <ExportProgressDialog
+ :show="show"
+ :progress="progress"
+ :current="current"
+ :total="total"
+ :estimated-time="estimatedTime"
+ @cancel="$emit('cancel')"
+ />
 </template>
 
 <script setup lang="ts">

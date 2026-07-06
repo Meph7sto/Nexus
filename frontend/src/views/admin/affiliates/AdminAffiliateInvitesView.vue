@@ -1,5 +1,5 @@
 <template>
-  <AdminAffiliateRecordsTable type="invites" />
+ <AdminAffiliateRecordsTable type="invites" />
 </template>
 
 <script setup lang="ts">

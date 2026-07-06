@@ -5,22 +5,22 @@
 
 import { apiClient } from '../client'
 import type {
-  Account,
-  CreateAccountRequest,
-  UpdateAccountRequest,
-  PaginatedResponse,
-  AccountUsageInfo,
-  WindowStats,
-  ClaudeModel,
-  AccountUsageStatsResponse,
-  TempUnschedulableStatus,
-  AdminDataPayload,
-  AdminDataImportResult,
-  CodexSessionImportRequest,
-  CodexSessionImportResult,
-  OpenAICodexPATCreateRequest,
-  CheckMixedChannelRequest,
-  CheckMixedChannelResponse
+ Account,
+ CreateAccountRequest,
+ UpdateAccountRequest,
+ PaginatedResponse,
+ AccountUsageInfo,
+ WindowStats,
+ ClaudeModel,
+ AccountUsageStatsResponse,
+ TempUnschedulableStatus,
+ AdminDataPayload,
+ AdminDataImportResult,
+ CodexSessionImportRequest,
+ CodexSessionImportResult,
+ OpenAICodexPATCreateRequest,
+ CheckMixedChannelRequest,
+ CheckMixedChannelResponse
 } from '@/types'
 
 /**
@@ -31,89 +31,89 @@ import type {
  * @returns Paginated list of accounts
  */
 export async function list(
-  page: number = 1,
-  pageSize: number = 20,
-  filters?: {
-    platform?: string
-    type?: string
-    status?: string
-    group?: string
-    search?: string
-    privacy_mode?: string
-    lite?: string
-    sort_by?: string
-    sort_order?: 'asc' | 'desc'
-  },
-  options?: {
-    signal?: AbortSignal
-  }
+ page: number = 1,
+ pageSize: number = 20,
+ filters?: {
+ platform?: string
+ type?: string
+ status?: string
+ group?: string
+ search?: string
+ privacy_mode?: string
+ lite?: string
+ sort_by?: string
+ sort_order?: 'asc' | 'desc'
+ },
+ options?: {
+ signal?: AbortSignal
+ }
 ): Promise<PaginatedResponse<Account>> {
-  const { data } = await apiClient.get<PaginatedResponse<Account>>('/admin/accounts', {
-    params: {
-      page,
-      page_size: pageSize,
-      ...filters
-    },
-    signal: options?.signal
-  })
-  return data
+ const { data } = await apiClient.get<PaginatedResponse<Account>>('/admin/accounts', {
+ params: {
+ page,
+ page_size: pageSize,
+ ...filters
+ },
+ signal: options?.signal
+ })
+ return data
 }
 
 export interface AccountListWithEtagResult {
-  notModified: boolean
-  etag: string | null
-  data: PaginatedResponse<Account> | null
+ notModified: boolean
+ etag: string | null
+ data: PaginatedResponse<Account> | null
 }
 
 export async function listWithEtag(
-  page: number = 1,
-  pageSize: number = 20,
-  filters?: {
-    platform?: string
-    type?: string
-    status?: string
-    group?: string
-    search?: string
-    privacy_mode?: string
-    lite?: string
-    sort_by?: string
-    sort_order?: 'asc' | 'desc'
-  },
-  options?: {
-    signal?: AbortSignal
-    etag?: string | null
-  }
+ page: number = 1,
+ pageSize: number = 20,
+ filters?: {
+ platform?: string
+ type?: string
+ status?: string
+ group?: string
+ search?: string
+ privacy_mode?: string
+ lite?: string
+ sort_by?: string
+ sort_order?: 'asc' | 'desc'
+ },
+ options?: {
+ signal?: AbortSignal
+ etag?: string | null
+ }
 ): Promise<AccountListWithEtagResult> {
-  const headers: Record<string, string> = {}
-  if (options?.etag) {
-    headers['If-None-Match'] = options.etag
-  }
+ const headers: Record<string, string> = {}
+ if (options?.etag) {
+ headers['If-None-Match'] = options.etag
+ }
 
-  const response = await apiClient.get<PaginatedResponse<Account>>('/admin/accounts', {
-    params: {
-      page,
-      page_size: pageSize,
-      ...filters
-    },
-    headers,
-    signal: options?.signal,
-    validateStatus: (status) => (status >= 200 && status < 300) || status === 304
-  })
+ const response = await apiClient.get<PaginatedResponse<Account>>('/admin/accounts', {
+ params: {
+ page,
+ page_size: pageSize,
+ ...filters
+ },
+ headers,
+ signal: options?.signal,
+ validateStatus: (status) => (status >= 200 && status < 300) || status === 304
+ })
 
-  const etagHeader = typeof response.headers?.etag === 'string' ? response.headers.etag : null
-  if (response.status === 304) {
-    return {
-      notModified: true,
-      etag: etagHeader,
-      data: null
-    }
-  }
+ const etagHeader = typeof response.headers?.etag === 'string' ? response.headers.etag : null
+ if (response.status === 304) {
+ return {
+ notModified: true,
+ etag: etagHeader,
+ data: null
+ }
+ }
 
-  return {
-    notModified: false,
-    etag: etagHeader,
-    data: response.data
-  }
+ return {
+ notModified: false,
+ etag: etagHeader,
+ data: response.data
+ }
 }
 
 /**
@@ -122,8 +122,8 @@ export async function listWithEtag(
  * @returns Account details
  */
 export async function getById(id: number): Promise<Account> {
-  const { data } = await apiClient.get<Account>(`/admin/accounts/${id}`)
-  return data
+ const { data } = await apiClient.get<Account>(`/admin/accounts/${id}`)
+ return data
 }
 
 /**
@@ -132,8 +132,8 @@ export async function getById(id: number): Promise<Account> {
  * @returns Created account
  */
 export async function create(accountData: CreateAccountRequest): Promise<Account> {
-  const { data } = await apiClient.post<Account>('/admin/accounts', accountData)
-  return data
+ const { data } = await apiClient.post<Account>('/admin/accounts', accountData)
+ return data
 }
 
 /**
@@ -143,18 +143,18 @@ export async function create(accountData: CreateAccountRequest): Promise<Account
  * @returns Updated account
  */
 export async function update(id: number, updates: UpdateAccountRequest): Promise<Account> {
-  const { data } = await apiClient.put<Account>(`/admin/accounts/${id}`, updates)
-  return data
+ const { data } = await apiClient.put<Account>(`/admin/accounts/${id}`, updates)
+ return data
 }
 
 /**
  * Check mixed-channel risk for account-group binding.
  */
 export async function checkMixedChannelRisk(
-  payload: CheckMixedChannelRequest
+ payload: CheckMixedChannelRequest
 ): Promise<CheckMixedChannelResponse> {
-  const { data } = await apiClient.post<CheckMixedChannelResponse>('/admin/accounts/check-mixed-channel', payload)
-  return data
+ const { data } = await apiClient.post<CheckMixedChannelResponse>('/admin/accounts/check-mixed-channel', payload)
+ return data
 }
 
 /**
@@ -163,8 +163,8 @@ export async function checkMixedChannelRisk(
  * @returns Success confirmation
  */
 export async function deleteAccount(id: number): Promise<{ message: string }> {
-  const { data } = await apiClient.delete<{ message: string }>(`/admin/accounts/${id}`)
-  return data
+ const { data } = await apiClient.delete<{ message: string }>(`/admin/accounts/${id}`)
+ return data
 }
 
 /**
@@ -174,7 +174,7 @@ export async function deleteAccount(id: number): Promise<{ message: string }> {
  * @returns Updated account
  */
 export async function toggleStatus(id: number, status: 'active' | 'inactive'): Promise<Account> {
-  return update(id, { status })
+ return update(id, { status })
 }
 
 /**
@@ -183,16 +183,16 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
  * @returns Test result
  */
 export async function testAccount(id: number): Promise<{
-  success: boolean
-  message: string
-  latency_ms?: number
+ success: boolean
+ message: string
+ latency_ms?: number
 }> {
-  const { data } = await apiClient.post<{
-    success: boolean
-    message: string
-    latency_ms?: number
-  }>(`/admin/accounts/${id}/test`)
-  return data
+ const { data } = await apiClient.post<{
+ success: boolean
+ message: string
+ latency_ms?: number
+ }>(`/admin/accounts/${id}/test`)
+ return data
 }
 
 /**
@@ -201,8 +201,8 @@ export async function testAccount(id: number): Promise<{
  * @returns Updated account
  */
 export async function refreshCredentials(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/refresh`)
-  return data
+ const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/refresh`)
+ return data
 }
 
 /**
@@ -210,23 +210,23 @@ export async function refreshCredentials(id: number): Promise<Account> {
  *
  * Unlike `update()`, this endpoint:
  * - never overwrites the whole `extra` JSONB (merges incrementally instead),
- *   so persistent settings like `base_rpm`, `window_cost_limit`, `max_sessions`,
- *   `quota_*` and `privacy_mode` are preserved
+ * so persistent settings like `base_rpm`, `window_cost_limit`, `max_sessions`,
+ * `quota_*` and `privacy_mode` are preserved
  * - clears the account error and invalidates the token cache server-side
  */
 export async function applyOAuthCredentials(
-  id: number,
-  payload: {
-    type: 'oauth' | 'setup-token'
-    credentials: Record<string, unknown>
-    extra?: Record<string, unknown>
-  }
+ id: number,
+ payload: {
+ type: 'oauth' | 'setup-token'
+ credentials: Record<string, unknown>
+ extra?: Record<string, unknown>
+ }
 ): Promise<Account> {
-  const { data } = await apiClient.post<Account>(
-    `/admin/accounts/${id}/apply-oauth-credentials`,
-    payload
-  )
-  return data
+ const { data } = await apiClient.post<Account>(
+ `/admin/accounts/${id}/apply-oauth-credentials`,
+ payload
+ )
+ return data
 }
 
 /**
@@ -236,10 +236,10 @@ export async function applyOAuthCredentials(
  * @returns Account usage statistics with history, summary, and models
  */
 export async function getStats(id: number, days: number = 30): Promise<AccountUsageStatsResponse> {
-  const { data } = await apiClient.get<AccountUsageStatsResponse>(`/admin/accounts/${id}/stats`, {
-    params: { days }
-  })
-  return data
+ const { data } = await apiClient.get<AccountUsageStatsResponse>(`/admin/accounts/${id}/stats`, {
+ params: { days }
+ })
+ return data
 }
 
 /**
@@ -248,8 +248,8 @@ export async function getStats(id: number, days: number = 30): Promise<AccountUs
  * @returns Updated account
  */
 export async function clearError(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/clear-error`)
-  return data
+ const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/clear-error`)
+ return data
 }
 
 /**
@@ -258,13 +258,13 @@ export async function clearError(id: number): Promise<Account> {
  * @returns Account usage info
  */
 export async function getUsage(id: number, source?: 'passive' | 'active', force?: boolean): Promise<AccountUsageInfo> {
-  const params: Record<string, string> = {}
-  if (source) params.source = source
-  if (force) params.force = 'true'
-  const { data } = await apiClient.get<AccountUsageInfo>(`/admin/accounts/${id}/usage`, {
-    params: Object.keys(params).length > 0 ? params : undefined
-  })
-  return data
+ const params: Record<string, string> = {}
+ if (source) params.source = source
+ if (force) params.force = 'true'
+ const { data } = await apiClient.get<AccountUsageInfo>(`/admin/accounts/${id}/usage`, {
+ params: Object.keys(params).length > 0 ? params : undefined
+ })
+ return data
 }
 
 /**
@@ -273,10 +273,10 @@ export async function getUsage(id: number, source?: 'passive' | 'active', force?
  * @returns Updated account
  */
 export async function clearRateLimit(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(
-    `/admin/accounts/${id}/clear-rate-limit`
-  )
-  return data
+ const { data } = await apiClient.post<Account>(
+ `/admin/accounts/${id}/clear-rate-limit`
+ )
+ return data
 }
 
 /**
@@ -285,8 +285,8 @@ export async function clearRateLimit(id: number): Promise<Account> {
  * @returns Updated account
  */
 export async function recoverState(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/recover-state`)
-  return data
+ const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/recover-state`)
+ return data
 }
 
 /**
@@ -295,10 +295,10 @@ export async function recoverState(id: number): Promise<Account> {
  * @returns Updated account
  */
 export async function resetAccountQuota(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(
-    `/admin/accounts/${id}/reset-quota`
-  )
-  return data
+ const { data } = await apiClient.post<Account>(
+ `/admin/accounts/${id}/reset-quota`
+ )
+ return data
 }
 
 /**
@@ -307,10 +307,10 @@ export async function resetAccountQuota(id: number): Promise<Account> {
  * @returns Status with detail state if active
  */
 export async function getTempUnschedulableStatus(id: number): Promise<TempUnschedulableStatus> {
-  const { data } = await apiClient.get<TempUnschedulableStatus>(
-    `/admin/accounts/${id}/temp-unschedulable`
-  )
-  return data
+ const { data } = await apiClient.get<TempUnschedulableStatus>(
+ `/admin/accounts/${id}/temp-unschedulable`
+ )
+ return data
 }
 
 /**
@@ -319,10 +319,10 @@ export async function getTempUnschedulableStatus(id: number): Promise<TempUnsche
  * @returns Success confirmation
  */
 export async function resetTempUnschedulable(id: number): Promise<{ message: string }> {
-  const { data } = await apiClient.delete<{ message: string }>(
-    `/admin/accounts/${id}/temp-unschedulable`
-  )
-  return data
+ const { data } = await apiClient.delete<{ message: string }>(
+ `/admin/accounts/${id}/temp-unschedulable`
+ )
+ return data
 }
 
 /**
@@ -332,11 +332,11 @@ export async function resetTempUnschedulable(id: number): Promise<{ message: str
  * @returns Auth URL and session ID
  */
 export async function generateAuthUrl(
-  endpoint: string,
-  config: { proxy_id?: number }
+ endpoint: string,
+ config: { proxy_id?: number }
 ): Promise<{ auth_url: string; session_id: string }> {
-  const { data } = await apiClient.post<{ auth_url: string; session_id: string }>(endpoint, config)
-  return data
+ const { data } = await apiClient.post<{ auth_url: string; session_id: string }>(endpoint, config)
+ return data
 }
 
 /**
@@ -346,11 +346,11 @@ export async function generateAuthUrl(
  * @returns Token information
  */
 export async function exchangeCode(
-  endpoint: string,
-  exchangeData: { session_id: string; code: string; state?: string; proxy_id?: number }
+ endpoint: string,
+ exchangeData: { session_id: string; code: string; state?: string; proxy_id?: number }
 ): Promise<Record<string, unknown>> {
-  const { data } = await apiClient.post<Record<string, unknown>>(endpoint, exchangeData)
-  return data
+ const { data } = await apiClient.post<Record<string, unknown>>(endpoint, exchangeData)
+ return data
 }
 
 /**
@@ -359,16 +359,16 @@ export async function exchangeCode(
  * @returns Results of batch creation
  */
 export async function batchCreate(accounts: CreateAccountRequest[]): Promise<{
-  success: number
-  failed: number
-  results: Array<{ success: boolean; account?: Account; error?: string }>
+ success: number
+ failed: number
+ results: Array<{ success: boolean; account?: Account; error?: string }>
 }> {
-  const { data } = await apiClient.post<{
-    success: number
-    failed: number
-    results: Array<{ success: boolean; account?: Account; error?: string }>
-  }>('/admin/accounts/batch', { accounts })
-  return data
+ const { data } = await apiClient.post<{
+ success: number
+ failed: number
+ results: Array<{ success: boolean; account?: Account; error?: string }>
+ }>('/admin/accounts/batch', { accounts })
+ return data
 }
 
 /**
@@ -377,20 +377,20 @@ export async function batchCreate(accounts: CreateAccountRequest[]): Promise<{
  * @returns Results of batch update
  */
 export async function batchUpdateCredentials(request: {
-  account_ids: number[]
-  field: string
-  value: any
+ account_ids: number[]
+ field: string
+ value: any
 }): Promise<{
-  success: number
-  failed: number
-  results: Array<{ account_id: number; success: boolean; error?: string }>
+ success: number
+ failed: number
+ results: Array<{ account_id: number; success: boolean; error?: string }>
 }> {
-  const { data } = await apiClient.post<{
-    success: number
-    failed: number
-    results: Array<{ account_id: number; success: boolean; error?: string }>
-  }>('/admin/accounts/batch-update-credentials', request)
-  return data
+ const { data } = await apiClient.post<{
+ success: number
+ failed: number
+ results: Array<{ account_id: number; success: boolean; error?: string }>
+ }>('/admin/accounts/batch-update-credentials', request)
+ return data
 }
 
 /**
@@ -400,29 +400,29 @@ export async function batchUpdateCredentials(request: {
  * @returns Success confirmation
  */
 export async function bulkUpdate(
-  accountIdsOrPayload: number[] | Record<string, unknown>,
-  updates?: Record<string, unknown>
+ accountIdsOrPayload: number[] | Record<string, unknown>,
+ updates?: Record<string, unknown>
 ): Promise<{
-  success: number
-  failed: number
-  success_ids?: number[]
-  failed_ids?: number[]
-  results: Array<{ account_id: number; success: boolean; error?: string }>
-  }> {
-  const payload = Array.isArray(accountIdsOrPayload)
-    ? {
-        account_ids: accountIdsOrPayload,
-        ...(updates ?? {})
-      }
-    : accountIdsOrPayload
-  const { data } = await apiClient.post<{
-    success: number
-    failed: number
-    success_ids?: number[]
-    failed_ids?: number[]
-    results: Array<{ account_id: number; success: boolean; error?: string }>
-  }>('/admin/accounts/bulk-update', payload)
-  return data
+ success: number
+ failed: number
+ success_ids?: number[]
+ failed_ids?: number[]
+ results: Array<{ account_id: number; success: boolean; error?: string }>
+ }> {
+ const payload = Array.isArray(accountIdsOrPayload)
+ ? {
+ account_ids: accountIdsOrPayload,
+ ...(updates ?? {})
+ }
+ : accountIdsOrPayload
+ const { data } = await apiClient.post<{
+ success: number
+ failed: number
+ success_ids?: number[]
+ failed_ids?: number[]
+ results: Array<{ account_id: number; success: boolean; error?: string }>
+ }>('/admin/accounts/bulk-update', payload)
+ return data
 }
 
 /**
@@ -431,12 +431,12 @@ export async function bulkUpdate(
  * @returns Today's stats (requests, tokens, cost)
  */
 export async function getTodayStats(id: number): Promise<WindowStats> {
-  const { data } = await apiClient.get<WindowStats>(`/admin/accounts/${id}/today-stats`)
-  return data
+ const { data } = await apiClient.get<WindowStats>(`/admin/accounts/${id}/today-stats`)
+ return data
 }
 
 export interface BatchTodayStatsResponse {
-  stats: Record<string, WindowStats>
+ stats: Record<string, WindowStats>
 }
 
 /**
@@ -445,10 +445,10 @@ export interface BatchTodayStatsResponse {
  * @returns 以账号 ID（字符串）为键的统计映射
  */
 export async function getBatchTodayStats(accountIds: number[]): Promise<BatchTodayStatsResponse> {
-  const { data } = await apiClient.post<BatchTodayStatsResponse>('/admin/accounts/today-stats/batch', {
-    account_ids: accountIds
-  })
-  return data
+ const { data } = await apiClient.post<BatchTodayStatsResponse>('/admin/accounts/today-stats/batch', {
+ account_ids: accountIds
+ })
+ return data
 }
 
 /**
@@ -458,10 +458,10 @@ export async function getBatchTodayStats(accountIds: number[]): Promise<BatchTod
  * @returns Updated account
  */
 export async function setSchedulable(id: number, schedulable: boolean): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/schedulable`, {
-    schedulable
-  })
-  return data
+ const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/schedulable`, {
+ schedulable
+ })
+ return data
 }
 
 /**
@@ -470,12 +470,12 @@ export async function setSchedulable(id: number, schedulable: boolean): Promise<
  * @returns List of available models for this account
  */
 export async function getAvailableModels(id: number): Promise<ClaudeModel[]> {
-  const { data } = await apiClient.get<ClaudeModel[]>(`/admin/accounts/${id}/models`)
-  return data
+ const { data } = await apiClient.get<ClaudeModel[]>(`/admin/accounts/${id}/models`)
+ return data
 }
 
 export interface SyncUpstreamModelsResult {
-  models: string[]
+ models: string[]
 }
 
 /**
@@ -484,15 +484,15 @@ export interface SyncUpstreamModelsResult {
  * @returns List of model IDs returned by the upstream
  */
 export async function syncUpstreamModels(id: number): Promise<SyncUpstreamModelsResult> {
-  const { data } = await apiClient.post<SyncUpstreamModelsResult>(`/admin/accounts/${id}/models/sync-upstream`)
-  return data
+ const { data } = await apiClient.post<SyncUpstreamModelsResult>(`/admin/accounts/${id}/models/sync-upstream`)
+ return data
 }
 
 export interface SyncUpstreamPreviewParams {
-  platform: string
-  type: string
-  base_url?: string
-  api_key: string
+ platform: string
+ type: string
+ base_url?: string
+ api_key: string
 }
 
 /**
@@ -501,123 +501,123 @@ export interface SyncUpstreamPreviewParams {
  * @returns List of model IDs returned by the upstream
  */
 export async function syncUpstreamModelsPreview(params: SyncUpstreamPreviewParams): Promise<SyncUpstreamModelsResult> {
-  const { data } = await apiClient.post<SyncUpstreamModelsResult>('/admin/accounts/models/sync-upstream-preview', params)
-  return data
+ const { data } = await apiClient.post<SyncUpstreamModelsResult>('/admin/accounts/models/sync-upstream-preview', params)
+ return data
 }
 
 export interface CRSPreviewAccount {
-  crs_account_id: string
-  kind: string
-  name: string
-  platform: string
-  type: string
+ crs_account_id: string
+ kind: string
+ name: string
+ platform: string
+ type: string
 }
 
 export interface PreviewFromCRSResult {
-  new_accounts: CRSPreviewAccount[]
-  existing_accounts: CRSPreviewAccount[]
+ new_accounts: CRSPreviewAccount[]
+ existing_accounts: CRSPreviewAccount[]
 }
 
 export async function previewFromCrs(params: {
-  base_url: string
-  username: string
-  password: string
+ base_url: string
+ username: string
+ password: string
 }): Promise<PreviewFromCRSResult> {
-  const { data } = await apiClient.post<PreviewFromCRSResult>('/admin/accounts/sync/crs/preview', params)
-  return data
+ const { data } = await apiClient.post<PreviewFromCRSResult>('/admin/accounts/sync/crs/preview', params)
+ return data
 }
 
 export async function syncFromCrs(params: {
-  base_url: string
-  username: string
-  password: string
-  sync_proxies?: boolean
-  selected_account_ids?: string[]
+ base_url: string
+ username: string
+ password: string
+ sync_proxies?: boolean
+ selected_account_ids?: string[]
 }): Promise<{
-  created: number
-  updated: number
-  skipped: number
-  failed: number
-  items: Array<{
-    crs_account_id: string
-    kind: string
-    name: string
-    action: string
-    error?: string
-  }>
+ created: number
+ updated: number
+ skipped: number
+ failed: number
+ items: Array<{
+ crs_account_id: string
+ kind: string
+ name: string
+ action: string
+ error?: string
+ }>
 }> {
-  const { data } = await apiClient.post<{
-    created: number
-    updated: number
-    skipped: number
-    failed: number
-    items: Array<{
-      crs_account_id: string
-      kind: string
-      name: string
-      action: string
-      error?: string
-    }>
-  }>('/admin/accounts/sync/crs', params)
-  return data
+ const { data } = await apiClient.post<{
+ created: number
+ updated: number
+ skipped: number
+ failed: number
+ items: Array<{
+ crs_account_id: string
+ kind: string
+ name: string
+ action: string
+ error?: string
+ }>
+ }>('/admin/accounts/sync/crs', params)
+ return data
 }
 
 export async function exportData(options?: {
-  ids?: number[]
-  filters?: {
-    platform?: string
-    type?: string
-    status?: string
-    group?: string
-    privacy_mode?: string
-    search?: string
-    sort_by?: string
-    sort_order?: 'asc' | 'desc'
-  }
-  includeProxies?: boolean
+ ids?: number[]
+ filters?: {
+ platform?: string
+ type?: string
+ status?: string
+ group?: string
+ privacy_mode?: string
+ search?: string
+ sort_by?: string
+ sort_order?: 'asc' | 'desc'
+ }
+ includeProxies?: boolean
 }): Promise<AdminDataPayload> {
-  const params: Record<string, string> = {}
-  if (options?.ids && options.ids.length > 0) {
-    params.ids = options.ids.join(',')
-  } else if (options?.filters) {
-    const { platform, type, status, group, privacy_mode, search, sort_by, sort_order } = options.filters
-    if (platform) params.platform = platform
-    if (type) params.type = type
-    if (status) params.status = status
-    if (group) params.group = group
-    if (privacy_mode) params.privacy_mode = privacy_mode
-    if (search) params.search = search
-    if (sort_by) params.sort_by = sort_by
-    if (sort_order) params.sort_order = sort_order
-  }
-  if (options?.includeProxies === false) {
-    params.include_proxies = 'false'
-  }
-  const { data } = await apiClient.get<AdminDataPayload>('/admin/accounts/data', { params })
-  return data
+ const params: Record<string, string> = {}
+ if (options?.ids && options.ids.length > 0) {
+ params.ids = options.ids.join(',')
+ } else if (options?.filters) {
+ const { platform, type, status, group, privacy_mode, search, sort_by, sort_order } = options.filters
+ if (platform) params.platform = platform
+ if (type) params.type = type
+ if (status) params.status = status
+ if (group) params.group = group
+ if (privacy_mode) params.privacy_mode = privacy_mode
+ if (search) params.search = search
+ if (sort_by) params.sort_by = sort_by
+ if (sort_order) params.sort_order = sort_order
+ }
+ if (options?.includeProxies === false) {
+ params.include_proxies = 'false'
+ }
+ const { data } = await apiClient.get<AdminDataPayload>('/admin/accounts/data', { params })
+ return data
 }
 
 export async function importData(payload: {
-  data: AdminDataPayload
-  skip_default_group_bind?: boolean
+ data: AdminDataPayload
+ skip_default_group_bind?: boolean
 }): Promise<AdminDataImportResult> {
-  const { data } = await apiClient.post<AdminDataImportResult>('/admin/accounts/data', {
-    data: payload.data,
-    skip_default_group_bind: payload.skip_default_group_bind
-  })
-  return data
+ const { data } = await apiClient.post<AdminDataImportResult>('/admin/accounts/data', {
+ data: payload.data,
+ skip_default_group_bind: payload.skip_default_group_bind
+ })
+ return data
 }
 
 export async function importCodexSession(payload: CodexSessionImportRequest): Promise<CodexSessionImportResult> {
-  const { data } = await apiClient.post<CodexSessionImportResult>('/admin/accounts/import/codex-session', payload, {
-    timeout: 120000 // 120s timeout for large session imports
-  })
-  return data
+ const { data } = await apiClient.post<CodexSessionImportResult>('/admin/accounts/import/codex-session', payload, {
+ timeout: 120000 // 120s timeout for large session imports
+ })
+ return data
 }
 
 export async function createOpenAICodexPAT(payload: OpenAICodexPATCreateRequest): Promise<Account> {
-  const { data } = await apiClient.post<Account>('/admin/openai/create-from-codex-pat', payload)
-  return data
+ const { data } = await apiClient.post<Account>('/admin/openai/create-from-codex-pat', payload)
+ return data
 }
 
 /**
@@ -625,10 +625,10 @@ export async function createOpenAICodexPAT(payload: OpenAICodexPATCreateRequest)
  * @returns Default model mapping (from -> to)
  */
 export async function getAntigravityDefaultModelMapping(): Promise<Record<string, string>> {
-  const { data } = await apiClient.get<Record<string, string>>(
-    '/admin/accounts/antigravity/default-model-mapping'
-  )
-  return data
+ const { data } = await apiClient.get<Record<string, string>>(
+ '/admin/accounts/antigravity/default-model-mapping'
+ )
+ return data
 }
 
 /**
@@ -638,33 +638,33 @@ export async function getAntigravityDefaultModelMapping(): Promise<Record<string
  * @returns Token information including access_token, email, etc.
  */
 export async function refreshOpenAIToken(
-  refreshToken: string,
-  proxyId?: number | null,
-  endpoint: string = '/admin/openai/refresh-token',
-  clientId?: string
+ refreshToken: string,
+ proxyId?: number | null,
+ endpoint: string = '/admin/openai/refresh-token',
+ clientId?: string
 ): Promise<Record<string, unknown>> {
-  const payload: { refresh_token: string; proxy_id?: number; client_id?: string } = {
-    refresh_token: refreshToken
-  }
-  if (proxyId) {
-    payload.proxy_id = proxyId
-  }
-  if (clientId) {
-    payload.client_id = clientId
-  }
-  const { data } = await apiClient.post<Record<string, unknown>>(endpoint, payload)
-  return data
+ const payload: { refresh_token: string; proxy_id?: number; client_id?: string } = {
+ refresh_token: refreshToken
+ }
+ if (proxyId) {
+ payload.proxy_id = proxyId
+ }
+ if (clientId) {
+ payload.client_id = clientId
+ }
+ const { data } = await apiClient.post<Record<string, unknown>>(endpoint, payload)
+ return data
 }
 
 /**
  * Batch operation result type
  */
 export interface BatchOperationResult {
-  total: number
-  success: number
-  failed: number
-  errors?: Array<{ account_id: number; error: string }>
-  warnings?: Array<{ account_id: number; warning: string }>
+ total: number
+ success: number
+ failed: number
+ errors?: Array<{ account_id: number; error: string }>
+ warnings?: Array<{ account_id: number; warning: string }>
 }
 
 /**
@@ -673,8 +673,8 @@ export interface BatchOperationResult {
  * @returns Success confirmation
  */
 export async function revertProxyFallback(id: number): Promise<{ message: string }> {
-  const { data } = await apiClient.post<{ message: string }>(`/admin/accounts/${id}/revert-proxy-fallback`)
-  return data
+ const { data } = await apiClient.post<{ message: string }>(`/admin/accounts/${id}/revert-proxy-fallback`)
+ return data
 }
 
 /**
@@ -683,10 +683,10 @@ export async function revertProxyFallback(id: number): Promise<{ message: string
  * @returns Batch operation result
  */
 export async function batchClearError(accountIds: number[]): Promise<BatchOperationResult> {
-  const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-clear-error', {
-    account_ids: accountIds
-  })
-  return data
+ const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-clear-error', {
+ account_ids: accountIds
+ })
+ return data
 }
 
 /**
@@ -695,12 +695,12 @@ export async function batchClearError(accountIds: number[]): Promise<BatchOperat
  * @returns Batch operation result
  */
 export async function batchRefresh(accountIds: number[]): Promise<BatchOperationResult> {
-  const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-refresh', {
-    account_ids: accountIds,
-  }, {
-    timeout: 120000  // 120s timeout for large batch refreshes
-  })
-  return data
+ const { data } = await apiClient.post<BatchOperationResult>('/admin/accounts/batch-refresh', {
+ account_ids: accountIds,
+ }, {
+ timeout: 120000 // 120s timeout for large batch refreshes
+ })
+ return data
 }
 
 /**
@@ -709,143 +709,143 @@ export async function batchRefresh(accountIds: number[]): Promise<BatchOperation
  * @returns Updated account
  */
 export async function setPrivacy(id: number): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/set-privacy`)
-  return data
+ const { data } = await apiClient.post<Account>(`/admin/accounts/${id}/set-privacy`)
+ return data
 }
 
 /**
  * OpenAI / Codex rate-limit reset feature: query and reset upstream usage.
  */
 export interface OpenAIRateLimitWindow {
-  used_percent: number
-  limit_window_seconds: number
-  reset_after_seconds: number
-  reset_at: number
+ used_percent: number
+ limit_window_seconds: number
+ reset_after_seconds: number
+ reset_at: number
 }
 
 export interface OpenAIRateLimit {
-  allowed: boolean
-  limit_reached: boolean
-  primary_window?: OpenAIRateLimitWindow | null
-  secondary_window?: OpenAIRateLimitWindow | null
+ allowed: boolean
+ limit_reached: boolean
+ primary_window?: OpenAIRateLimitWindow | null
+ secondary_window?: OpenAIRateLimitWindow | null
 }
 
 export interface OpenAIAdditionalRateLimit {
-  limit_name: string
-  metered_feature: string
-  rate_limit?: OpenAIRateLimit | null
+ limit_name: string
+ metered_feature: string
+ rate_limit?: OpenAIRateLimit | null
 }
 
 export interface OpenAIRateLimitResetCreditDetail {
-  expires_at?: string
+ expires_at?: string
 }
 
 export interface OpenAIRateLimitResetCredits {
-  available_count: number
-  credits?: OpenAIRateLimitResetCreditDetail[]
+ available_count: number
+ credits?: OpenAIRateLimitResetCreditDetail[]
 }
 
 export interface OpenAIQuotaUsage {
-  user_id?: string
-  account_id?: string
-  email?: string
-  plan_type?: string
-  rate_limit?: OpenAIRateLimit | null
-  additional_rate_limits?: OpenAIAdditionalRateLimit[]
-  rate_limit_reset_credits?: OpenAIRateLimitResetCredits | null
-  fetched_at: number
+ user_id?: string
+ account_id?: string
+ email?: string
+ plan_type?: string
+ rate_limit?: OpenAIRateLimit | null
+ additional_rate_limits?: OpenAIAdditionalRateLimit[]
+ rate_limit_reset_credits?: OpenAIRateLimitResetCredits | null
+ fetched_at: number
 }
 
 export interface OpenAIQuotaResetCredit {
-  id?: string
-  reset_type?: string
-  status?: string
-  granted_at?: string
-  expires_at?: string
-  redeem_started_at?: string
-  redeemed_at?: string
+ id?: string
+ reset_type?: string
+ status?: string
+ granted_at?: string
+ expires_at?: string
+ redeem_started_at?: string
+ redeemed_at?: string
 }
 
 export interface OpenAIQuotaResetResult {
-  code: string
-  credit?: OpenAIQuotaResetCredit | null
-  windows_reset: number
+ code: string
+ credit?: OpenAIQuotaResetCredit | null
+ windows_reset: number
 }
 
 /**
  * Query OpenAI/Codex rate-limit usage for an OAuth account.
  */
 export async function queryOpenAIQuota(id: number): Promise<OpenAIQuotaUsage> {
-  const { data } = await apiClient.get<OpenAIQuotaUsage>(`/admin/openai/accounts/${id}/quota`)
-  return data
+ const { data } = await apiClient.get<OpenAIQuotaUsage>(`/admin/openai/accounts/${id}/quota`)
+ return data
 }
 
 /**
  * Consume one rate-limit-reset credit for an OpenAI/Codex OAuth account.
  */
 export async function resetOpenAIQuota(id: number): Promise<OpenAIQuotaResetResult> {
-  const { data } = await apiClient.post<OpenAIQuotaResetResult>(`/admin/openai/accounts/${id}/reset-quota`)
-  return data
+ const { data } = await apiClient.post<OpenAIQuotaResetResult>(`/admin/openai/accounts/${id}/reset-quota`)
+ return data
 }
 
 export interface SparkShadowCreatePayload {
-  name?: string
-  priority?: number
-  concurrency?: number
-  group_ids?: number[]
+ name?: string
+ priority?: number
+ concurrency?: number
+ group_ids?: number[]
 }
 
 export async function createSparkShadow(parentId: number, payload: SparkShadowCreatePayload): Promise<Account> {
-  const { data } = await apiClient.post<Account>(`/admin/accounts/${parentId}/shadow`, payload)
-  return data
+ const { data } = await apiClient.post<Account>(`/admin/accounts/${parentId}/shadow`, payload)
+ return data
 }
 
 export const accountsAPI = {
-  list,
-  listWithEtag,
-  getById,
-  create,
-  update,
-  checkMixedChannelRisk,
-  delete: deleteAccount,
-  toggleStatus,
-  testAccount,
-  refreshCredentials,
-  applyOAuthCredentials,
-  getStats,
-  clearError,
-  getUsage,
-  getTodayStats,
-  getBatchTodayStats,
-  clearRateLimit,
-  recoverState,
-  resetAccountQuota,
-  getTempUnschedulableStatus,
-  resetTempUnschedulable,
-  setSchedulable,
-  getAvailableModels,
-  syncUpstreamModels,
-  syncUpstreamModelsPreview,
-  generateAuthUrl,
-  exchangeCode,
-  refreshOpenAIToken,
-  batchCreate,
-  batchUpdateCredentials,
-  bulkUpdate,
-  previewFromCrs,
-  syncFromCrs,
-  exportData,
-  importData,
-  importCodexSession,
-  createOpenAICodexPAT,
-  getAntigravityDefaultModelMapping,
-  batchClearError,
-  batchRefresh,
-  setPrivacy,
-  revertProxyFallback,
-  queryOpenAIQuota,
-  resetOpenAIQuota,
-  createSparkShadow
+ list,
+ listWithEtag,
+ getById,
+ create,
+ update,
+ checkMixedChannelRisk,
+ delete: deleteAccount,
+ toggleStatus,
+ testAccount,
+ refreshCredentials,
+ applyOAuthCredentials,
+ getStats,
+ clearError,
+ getUsage,
+ getTodayStats,
+ getBatchTodayStats,
+ clearRateLimit,
+ recoverState,
+ resetAccountQuota,
+ getTempUnschedulableStatus,
+ resetTempUnschedulable,
+ setSchedulable,
+ getAvailableModels,
+ syncUpstreamModels,
+ syncUpstreamModelsPreview,
+ generateAuthUrl,
+ exchangeCode,
+ refreshOpenAIToken,
+ batchCreate,
+ batchUpdateCredentials,
+ bulkUpdate,
+ previewFromCrs,
+ syncFromCrs,
+ exportData,
+ importData,
+ importCodexSession,
+ createOpenAICodexPAT,
+ getAntigravityDefaultModelMapping,
+ batchClearError,
+ batchRefresh,
+ setPrivacy,
+ revertProxyFallback,
+ queryOpenAIQuota,
+ resetOpenAIQuota,
+ createSparkShadow
 }
 
 export default accountsAPI

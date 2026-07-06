@@ -11,8 +11,8 @@ import type { Account } from '@/types'
  * Schedule a usage fetch. All requests execute immediately.
  */
 export function enqueueUsageRequest<T>(
-  _account: Account,
-  fn: () => Promise<T>
+ _account: Account,
+ fn: () => Promise<T>
 ): Promise<T> {
-  return fn()
+ return fn()
 }

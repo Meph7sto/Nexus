@@ -5,10 +5,10 @@
 
 import { apiClient } from '../client'
 import type {
-  ScheduledTestPlan,
-  ScheduledTestResult,
-  CreateScheduledTestPlanRequest,
-  UpdateScheduledTestPlanRequest
+ ScheduledTestPlan,
+ ScheduledTestResult,
+ CreateScheduledTestPlanRequest,
+ UpdateScheduledTestPlanRequest
 } from '@/types'
 
 /**
@@ -17,10 +17,10 @@ import type {
  * @returns List of scheduled test plans
  */
 export async function listByAccount(accountId: number): Promise<ScheduledTestPlan[]> {
-  const { data } = await apiClient.get<ScheduledTestPlan[]>(
-    `/admin/accounts/${accountId}/scheduled-test-plans`
-  )
-  return data ?? []
+ const { data } = await apiClient.get<ScheduledTestPlan[]>(
+ `/admin/accounts/${accountId}/scheduled-test-plans`
+ )
+ return data ?? []
 }
 
 /**
@@ -29,11 +29,11 @@ export async function listByAccount(accountId: number): Promise<ScheduledTestPla
  * @returns Created plan
  */
 export async function create(req: CreateScheduledTestPlanRequest): Promise<ScheduledTestPlan> {
-  const { data } = await apiClient.post<ScheduledTestPlan>(
-    '/admin/scheduled-test-plans',
-    req
-  )
-  return data
+ const { data } = await apiClient.post<ScheduledTestPlan>(
+ '/admin/scheduled-test-plans',
+ req
+ )
+ return data
 }
 
 /**
@@ -43,11 +43,11 @@ export async function create(req: CreateScheduledTestPlanRequest): Promise<Sched
  * @returns Updated plan
  */
 export async function update(id: number, req: UpdateScheduledTestPlanRequest): Promise<ScheduledTestPlan> {
-  const { data } = await apiClient.put<ScheduledTestPlan>(
-    `/admin/scheduled-test-plans/${id}`,
-    req
-  )
-  return data
+ const { data } = await apiClient.put<ScheduledTestPlan>(
+ `/admin/scheduled-test-plans/${id}`,
+ req
+ )
+ return data
 }
 
 /**
@@ -55,7 +55,7 @@ export async function update(id: number, req: UpdateScheduledTestPlanRequest): P
  * @param id - Plan ID
  */
 export async function deletePlan(id: number): Promise<void> {
-  await apiClient.delete(`/admin/scheduled-test-plans/${id}`)
+ await apiClient.delete(`/admin/scheduled-test-plans/${id}`)
 }
 
 /**
@@ -65,21 +65,21 @@ export async function deletePlan(id: number): Promise<void> {
  * @returns List of test results
  */
 export async function listResults(planId: number, limit?: number): Promise<ScheduledTestResult[]> {
-  const { data } = await apiClient.get<ScheduledTestResult[]>(
-    `/admin/scheduled-test-plans/${planId}/results`,
-    {
-      params: limit ? { limit } : undefined
-    }
-  )
-  return data ?? []
+ const { data } = await apiClient.get<ScheduledTestResult[]>(
+ `/admin/scheduled-test-plans/${planId}/results`,
+ {
+ params: limit ? { limit } : undefined
+ }
+ )
+ return data ?? []
 }
 
 export const scheduledTestsAPI = {
-  listByAccount,
-  create,
-  update,
-  delete: deletePlan,
-  listResults
+ listByAccount,
+ create,
+ update,
+ delete: deletePlan,
+ listResults
 }
 
 export default scheduledTestsAPI

@@ -9,28 +9,28 @@ export type UsageRequestKind = UsageRequestType
 
 /** 状态码徽章:≥500 红、429 紫、≥400 琥珀、其余灰 */
 export function statusCodeBadgeClass(code: number): string {
-  if (code >= 500) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-  if (code === 429) return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-  if (code >= 400) return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-  return 'bg-gray-100 text-gray-800 dark:bg-dark-700 dark:text-gray-200'
+ if (code >= 500) return 'bg-red-100 text-red-800 '
+ if (code === 429) return 'bg-purple-100 text-purple-800 '
+ if (code >= 400) return 'bg-amber-100 text-amber-800 '
+ return 'bg-gray-100 text-gray-800 '
 }
 
 /** 请求类型徽章配色(cyber 红、ws 紫、stream 蓝、sync 灰、未知琥珀) */
 export function requestTypeBadgeClass(kind: UsageRequestKind): string {
-  if (kind === 'cyber') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-  if (kind === 'ws_v2') return 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200'
-  if (kind === 'stream') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-  if (kind === 'sync') return 'bg-gray-100 text-gray-800 dark:bg-dark-700 dark:text-gray-200'
-  return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+ if (kind === 'cyber') return 'bg-red-100 text-red-800 '
+ if (kind === 'ws_v2') return 'bg-violet-100 text-violet-800 '
+ if (kind === 'stream') return 'bg-blue-100 text-blue-800 '
+ if (kind === 'sync') return 'bg-gray-100 text-gray-800 '
+ return 'bg-amber-100 text-amber-800 '
 }
 
 /** 请求类型 i18n 键(展示方自行 t()) */
 export function requestTypeLabelKey(kind: UsageRequestKind): string {
-  if (kind === 'cyber') return 'usage.cyber'
-  if (kind === 'ws_v2') return 'usage.ws'
-  if (kind === 'stream') return 'usage.stream'
-  if (kind === 'sync') return 'usage.sync'
-  return 'usage.unknown'
+ if (kind === 'cyber') return 'usage.cyber'
+ if (kind === 'ws_v2') return 'usage.ws'
+ if (kind === 'stream') return 'usage.stream'
+ if (kind === 'sync') return 'usage.sync'
+ return 'usage.unknown'
 }
 
 /**
@@ -38,19 +38,19 @@ export function requestTypeLabelKey(kind: UsageRequestKind): string {
  * 缺失时按 stream 布尔回退,两者都缺返回 null(展示为 -)。
  */
 export function numericRequestTypeKind(
-  requestType?: number | null,
-  stream?: boolean | null
+ requestType?: number | null,
+ stream?: boolean | null
 ): UsageRequestKind | null {
-  const rt = requestType ?? (stream == null ? 0 : stream ? 2 : 1)
-  if (rt === 3) return 'ws_v2'
-  if (rt === 2) return 'stream'
-  if (rt === 1) return 'sync'
-  return null
+ const rt = requestType ?? (stream == null ? 0 : stream ? 2 : 1)
+ if (rt === 3) return 'ws_v2'
+ if (rt === 2) return 'stream'
+ if (rt === 1) return 'sync'
+ return null
 }
 
 /** 错误表列 key → 后端 sort_by(status 列实际按 status_code 排序) */
 export function mapErrorSortKey(key: string): string {
-  return key === 'status' ? 'status_code' : key
+ return key === 'status' ? 'status_code' : key
 }
 
 /**
