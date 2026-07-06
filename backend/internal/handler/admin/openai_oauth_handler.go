@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -402,6 +403,48 @@ func buildOpenAICodexPATAccountName(name string, tokenInfo *service.OpenAITokenI
 		}
 	}
 	return "Codex PAT Account"
+}
+
+// QuotaSummary handles GET /api/v1/admin/openai/quota-summary.
+func (h *OpenAIOAuthHandler) QuotaSummary(c *gin.Context) {
+	if h.adminService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "admin service not available")
+		return
+	}
+	now := time.Now().UTC()
+	input := service.OpenAIQuotaSummaryInput{
+		ProjectionAt: now,
+		GeneratedAt:  now,
+		AccountType:  strings.TrimSpace(c.Query("type")),
+	}
+	if raw := strings.TrimSpace(c.Query("projection_at")); raw != "" {
+		t, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			response.BadRequest(c, "invalid projection_at")
+			return
+		}
+		input.ProjectionAt = t.UTC()
+	}
+	if rawGroup := strings.TrimSpace(c.Query("group")); rawGroup != "" {
+		filter := &service.OpenAIQuotaSummaryGroupFilter{}
+		if rawGroup == accountListGroupUngroupedQueryValue {
+			filter.Ungrouped = true
+		} else {
+			id, err := strconv.ParseInt(rawGroup, 10, 64)
+			if err != nil || id <= 0 {
+				response.BadRequest(c, "invalid group")
+				return
+			}
+			filter.ID = &id
+		}
+		input.GroupFilter = filter
+	}
+	out, err := h.adminService.GetOpenAIQuotaSummary(c.Request.Context(), input)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, out)
 }
 
 // QueryQuota queries the rate-limit / quota usage for an OpenAI account.

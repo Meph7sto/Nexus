@@ -10,27 +10,29 @@ import (
 )
 
 type stubAdminService struct {
-	users                []service.User
-	apiKeys              []service.APIKey
-	groups               []service.Group
-	accounts             []service.Account
-	proxies              []service.Proxy
-	proxyCounts          []service.ProxyWithAccountCount
-	redeems              []service.RedeemCode
-	boundAuthIdentity    *service.AdminBindAuthIdentityInput
-	boundAuthIdentityFor int64
-	createdAccounts      []*service.CreateAccountInput
-	createdProxies       []*service.CreateProxyInput
-	updatedProxyIDs      []int64
-	updatedProxies       []*service.UpdateProxyInput
-	testedProxyIDs       []int64
-	getUserErr           error
-	createAccountErr     error
-	createSparkShadowErr error
-	updateAccountErr     error
-	bulkUpdateAccountErr error
-	checkMixedErr        error
-	lastMixedCheck       struct {
+	users                       []service.User
+	apiKeys                     []service.APIKey
+	groups                      []service.Group
+	accounts                    []service.Account
+	proxies                     []service.Proxy
+	proxyCounts                 []service.ProxyWithAccountCount
+	redeems                     []service.RedeemCode
+	boundAuthIdentity           *service.AdminBindAuthIdentityInput
+	boundAuthIdentityFor        int64
+	createdAccounts             []*service.CreateAccountInput
+	createdProxies              []*service.CreateProxyInput
+	updatedProxyIDs             []int64
+	updatedProxies              []*service.UpdateProxyInput
+	testedProxyIDs              []int64
+	getUserErr                  error
+	createAccountErr            error
+	createSparkShadowErr        error
+	updateAccountErr            error
+	bulkUpdateAccountErr        error
+	checkMixedErr               error
+	openAIQuotaSummary          *service.OpenAIQuotaSummaryResponse
+	lastOpenAIQuotaSummaryInput service.OpenAIQuotaSummaryInput
+	lastMixedCheck              struct {
 		accountID int64
 		platform  string
 		groupIDs  []int64
