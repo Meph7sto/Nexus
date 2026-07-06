@@ -18,7 +18,7 @@
           >
             <option value="">{{ t('admin.openAIQuotaSummary.allGroups') }}</option>
             <option value="ungrouped">{{ t('admin.openAIQuotaSummary.ungrouped') }}</option>
-            <option v-for="group in groups" :key="group.id" :value="String(group.id)">
+            <option v-for="group in groupOptions" :key="group.id" :value="String(group.id)">
               {{ group.name }}
             </option>
           </select>
@@ -28,9 +28,9 @@
             class="input w-40"
           >
             <option value="">{{ t('admin.openAIQuotaSummary.allTypes') }}</option>
-            <option value="oauth">{{ t('admin.openAIQuotaSummary.typeOAuth') }}</option>
-            <option value="setup-token">{{ t('admin.openAIQuotaSummary.typeSetupToken') }}</option>
-            <option value="apikey">{{ t('admin.openAIQuotaSummary.typeApiKey') }}</option>
+            <option value="oauth">{{ accountTypeLabel('oauth') }}</option>
+            <option value="setup-token">{{ accountTypeLabel('setup-token') }}</option>
+            <option value="apikey">{{ accountTypeLabel('apikey') }}</option>
           </select>
           <div class="inline-flex overflow-hidden rounded-md border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
             <button
@@ -103,7 +103,7 @@
         {{ t('common.loading') }}
       </div>
 
-      <div v-else-if="!summary?.groups.length" class="card p-6 text-sm text-gray-500 dark:text-gray-400">
+      <div v-else-if="!loading && !summary?.groups.length" class="card p-6 text-sm text-gray-500 dark:text-gray-400">
         {{ t('common.noData') }}
       </div>
 
@@ -116,7 +116,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-4 py-3 dark:border-dark-700">
           <div class="min-w-0">
             <h2 class="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
-              {{ group.group_name }}
+              {{ group.ungrouped ? t('admin.openAIQuotaSummary.ungrouped') : group.group_name }}
             </h2>
             <p class="text-xs text-gray-500 dark:text-gray-400">
               {{ group.ungrouped ? t('admin.openAIQuotaSummary.ungrouped') : `#${group.group_id}` }}
@@ -150,7 +150,7 @@
                 :key="`${group.group_id ?? 'ungrouped'}-${row.account_type}`"
                 class="hover:bg-gray-50 dark:hover:bg-dark-700/40"
               >
-                <td class="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{{ row.account_type }}</td>
+                <td class="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{{ accountTypeLabel(row.account_type) }}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{{ row.included_count }}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{{ row.error_count }}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{{ row.inactive_count }}</td>
@@ -175,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineComponent, h, onMounted, ref } from 'vue'
+import { computed, defineComponent, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { accountsAPI } from '@/api/admin/accounts'
@@ -186,6 +186,10 @@ import { useAppStore } from '@/stores/app'
 
 type ProjectionMode = 'current' | 'hours' | 'days'
 type OpenAIQuotaSummaryTypeFilter = '' | Extract<AccountType, 'oauth' | 'setup-token' | 'apikey'>
+interface GroupFilterOption {
+ id: number
+ name: string
+}
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -196,10 +200,29 @@ const selectedGroup = ref('')
 const selectedType = ref<OpenAIQuotaSummaryTypeFilter>('')
 const groups = ref<AdminGroup[]>([])
 const summary = ref<OpenAIQuotaSummaryResponse | null>(null)
-const loading = ref(false)
+const loading = ref(true)
 
 const activeModeClass = 'bg-primary-600 text-white'
 const inactiveModeClass = 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-dark-700'
+
+const groupOptions = computed<GroupFilterOption[]>(() => {
+ const options: GroupFilterOption[] = []
+ const seen = new Set<number>()
+
+ for (const group of groups.value) {
+  if (group.platform !== 'openai') continue
+  options.push({ id: group.id, name: group.name })
+  seen.add(group.id)
+ }
+
+ for (const group of summary.value?.groups ?? []) {
+  if (group.ungrouped || group.group_id == null || seen.has(group.group_id)) continue
+  options.push({ id: group.group_id, name: group.group_name })
+  seen.add(group.group_id)
+ }
+
+ return options
+})
 
 function formatPercent(value: number | null | undefined): string {
  if (value == null || Number.isNaN(value)) return '-'
@@ -211,6 +234,15 @@ function formatDateTime(value: string | null | undefined): string {
  const date = new Date(value)
  if (Number.isNaN(date.getTime())) return value
  return date.toLocaleString()
+}
+
+function accountTypeLabel(type: string): string {
+ const labels: Record<string, string> = {
+  oauth: t('admin.accounts.oauthType'),
+  'setup-token': t('admin.accounts.setupToken'),
+  apikey: t('admin.accounts.apiKey'),
+ }
+ return labels[type] ?? type
 }
 
 function projectionParams(): OpenAIQuotaSummaryParams {
@@ -236,7 +268,7 @@ function summaryParams(): OpenAIQuotaSummaryParams {
 
 async function loadGroups(): Promise<void> {
  try {
-  groups.value = await groupsAPI.getAll('openai')
+  groups.value = await groupsAPI.getAllIncludingInactive()
  } catch (error) {
   appStore.showError(error instanceof Error ? error.message : String(error))
  }

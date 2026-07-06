@@ -80,3 +80,25 @@ TDD / verification evidence:
   - Result: passed.
 - `corepack pnpm exec eslint src/views/admin/OpenAIQuotaSummaryView.vue src/views/admin/__tests__/OpenAIQuotaSummaryView.spec.ts src/router/index.ts src/utils/adminPermissions.ts src/utils/__tests__/adminPermissions.spec.ts src/i18n/locales/en.ts src/i18n/locales/zh.ts`
   - Result: passed.
+
+## Re-Review Fix Report
+
+Status: Complete.
+
+Changes:
+
+- Localized ungrouped section headings instead of rendering the raw API `group_name`.
+- Switched the group filter to `groupsAPI.getAllIncludingInactive()` and merged in non-ungrouped summary groups missing from the groups API response while preserving `group=<id>` and `group=ungrouped` query values.
+- Rendered OpenAI quota row account types through existing `admin.accounts.*` account type labels.
+- Initialized the summary area in a loading state so the empty state is not visible before the first summary request settles.
+
+TDD / verification evidence:
+
+- RED: `corepack pnpm test:run src/views/admin/__tests__/OpenAIQuotaSummaryView.spec.ts`
+  - Result: failed as expected. Failures covered raw `oauth` display, missing `getAllIncludingInactive()` call, raw ungrouped heading, missing summary-derived group option, and initial empty-state flash.
+- GREEN: `corepack pnpm test:run src/views/admin/__tests__/OpenAIQuotaSummaryView.spec.ts`
+  - Result: 1 test file passed, 6 tests passed.
+- `corepack pnpm typecheck`
+  - Result: passed.
+- `corepack pnpm exec eslint src/views/admin/OpenAIQuotaSummaryView.vue src/views/admin/__tests__/OpenAIQuotaSummaryView.spec.ts`
+  - Result: passed.

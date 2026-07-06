@@ -18,7 +18,8 @@ vi.mock('@/api/admin/accounts', () => ({
 
 vi.mock('@/api/admin/groups', () => ({
  groupsAPI: {
-  getAll: vi.fn()
+  getAll: vi.fn(),
+  getAllIncludingInactive: vi.fn()
  }
 }))
 
@@ -99,6 +100,72 @@ const groupsResponse = [
   model_routing: null,
   model_routing_enabled: false,
   mcp_xml_inject: false
+ },
+ {
+  id: 34,
+  name: 'Inactive OpenAI',
+  description: null,
+  platform: 'openai',
+  rate_multiplier: 1,
+  is_exclusive: false,
+  status: 'inactive',
+  subscription_type: 'standard',
+  daily_limit_usd: null,
+  weekly_limit_usd: null,
+  monthly_limit_usd: null,
+  allow_image_generation: false,
+  image_rate_independent: false,
+  image_rate_multiplier: 1,
+  image_price_1k: null,
+  image_price_2k: null,
+  image_price_4k: null,
+  peak_rate_enabled: false,
+  peak_start: '00:00',
+  peak_end: '00:00',
+  peak_rate_multiplier: 1,
+  claude_code_only: false,
+  fallback_group_id: null,
+  fallback_group_id_on_invalid_request: null,
+  require_oauth_only: false,
+  require_privacy_set: false,
+  created_at: '2026-07-06T00:00:00Z',
+  updated_at: '2026-07-06T00:00:00Z',
+  model_routing: null,
+  model_routing_enabled: false,
+  mcp_xml_inject: false
+ },
+ {
+  id: 99,
+  name: 'Gemini Group',
+  description: null,
+  platform: 'gemini',
+  rate_multiplier: 1,
+  is_exclusive: false,
+  status: 'active',
+  subscription_type: 'standard',
+  daily_limit_usd: null,
+  weekly_limit_usd: null,
+  monthly_limit_usd: null,
+  allow_image_generation: false,
+  image_rate_independent: false,
+  image_rate_multiplier: 1,
+  image_price_1k: null,
+  image_price_2k: null,
+  image_price_4k: null,
+  peak_rate_enabled: false,
+  peak_start: '00:00',
+  peak_end: '00:00',
+  peak_rate_multiplier: 1,
+  claude_code_only: false,
+  fallback_group_id: null,
+  fallback_group_id_on_invalid_request: null,
+  require_oauth_only: false,
+  require_privacy_set: false,
+  created_at: '2026-07-06T00:00:00Z',
+  updated_at: '2026-07-06T00:00:00Z',
+  model_routing: null,
+  model_routing_enabled: false,
+  mcp_xml_inject: false
  }
 ]
 
@@ -108,6 +175,8 @@ describe('OpenAIQuotaSummaryView', () => {
   vi.mocked(accountsAPI.getOpenAIQuotaSummary).mockResolvedValue(response)
   vi.mocked(groupsAPI.getAll).mockReset()
   vi.mocked(groupsAPI.getAll).mockResolvedValue(groupsResponse)
+  vi.mocked(groupsAPI.getAllIncludingInactive).mockReset()
+  vi.mocked(groupsAPI.getAllIncludingInactive).mockResolvedValue(groupsResponse)
  })
 
  it('loads and renders grouped summary rows', async () => {
@@ -116,7 +185,7 @@ describe('OpenAIQuotaSummaryView', () => {
 
   expect(accountsAPI.getOpenAIQuotaSummary).toHaveBeenCalledWith({})
   expect(wrapper.text()).toContain('OpenAI Main')
-  expect(wrapper.text()).toContain('oauth')
+  expect(wrapper.find('tbody td').text()).toBe('admin.accounts.oauthType')
   expect(wrapper.text()).toContain('90.0%')
   expect(wrapper.text()).toContain('84.5%')
   expect(wrapper.text()).toContain('openai-01')
@@ -147,7 +216,7 @@ describe('OpenAIQuotaSummaryView', () => {
   const wrapper = mount(OpenAIQuotaSummaryView)
   await flushPromises()
 
-  expect(groupsAPI.getAll).toHaveBeenCalledWith('openai')
+  expect(groupsAPI.getAllIncludingInactive).toHaveBeenCalledWith()
 
   await wrapper.get('[data-test="group-filter"]').setValue('12')
   await wrapper.get('[data-test="type-filter"]').setValue('oauth')
@@ -158,5 +227,58 @@ describe('OpenAIQuotaSummaryView', () => {
    group: '12',
    type: 'oauth'
   })
+ })
+
+ it('uses the localized ungrouped heading instead of the raw API group name', async () => {
+  vi.mocked(accountsAPI.getOpenAIQuotaSummary).mockResolvedValue({
+   ...response,
+   groups: [
+    {
+     group_id: null,
+     group_name: 'Raw Ungrouped Bucket',
+     ungrouped: true,
+     rows: response.groups[0].rows
+    }
+   ]
+  })
+
+  const wrapper = mount(OpenAIQuotaSummaryView)
+  await flushPromises()
+
+  expect(wrapper.get('section h2').text()).toBe('admin.openAIQuotaSummary.ungrouped')
+  expect(wrapper.text()).not.toContain('Raw Ungrouped Bucket')
+ })
+
+ it('includes inactive OpenAI groups and summary-derived groups in the group filter', async () => {
+  vi.mocked(accountsAPI.getOpenAIQuotaSummary).mockResolvedValue({
+   ...response,
+   groups: [
+    ...response.groups,
+    {
+     group_id: 56,
+     group_name: 'Summary Only Group',
+     ungrouped: false,
+     rows: response.groups[0].rows
+    }
+   ]
+  })
+
+  const wrapper = mount(OpenAIQuotaSummaryView)
+  await flushPromises()
+
+  const options = wrapper.findAll('[data-test="group-filter"] option').map(option => option.text())
+  expect(options).toContain('OpenAI Main')
+  expect(options).toContain('Inactive OpenAI')
+  expect(options).toContain('Summary Only Group')
+  expect(options).not.toContain('Gemini Group')
+ })
+
+ it('does not show the empty state before the first summary request settles', () => {
+  vi.mocked(accountsAPI.getOpenAIQuotaSummary).mockReturnValue(new Promise(() => {}))
+
+  const wrapper = mount(OpenAIQuotaSummaryView)
+
+  expect(wrapper.text()).toContain('common.loading')
+  expect(wrapper.text()).not.toContain('common.noData')
  })
 })
