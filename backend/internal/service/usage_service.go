@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
+	"github.com/Wei-Shaw/nexus/internal/pkg/pagination"
+	"github.com/Wei-Shaw/nexus/internal/pkg/usagestats"
 )
 
 var (
@@ -52,6 +53,25 @@ type UsageStats struct {
 	TotalCost                float64 `json:"total_cost"`
 	TotalActualCost          float64 `json:"total_actual_cost"`
 	AverageDurationMs        float64 `json:"average_duration_ms"`
+}
+
+type UsageRankingParams struct {
+	RankBy          usagestats.UserUsageRankingSort
+	StartTime       time.Time
+	EndTime         time.Time
+	Page            int
+	PageSize        int
+	IncludeIdentity bool
+}
+
+type UsageRankingItem struct {
+	Rank            int64   `json:"rank"`
+	UserID          *int64  `json:"user_id,omitempty"`
+	Nickname        string  `json:"nickname"`
+	Email           string  `json:"email"`
+	Requests        int64   `json:"requests"`
+	TotalTokens     int64   `json:"total_tokens"`
+	TotalActualCost float64 `json:"total_actual_cost"`
 }
 
 // UsageService 使用统计服务
@@ -460,4 +480,86 @@ func (s *UsageService) GetStatsWithFilters(ctx context.Context, filters usagesta
 		return nil, fmt.Errorf("get usage stats with filters: %w", err)
 	}
 	return stats, nil
+}
+
+// GetUserUsageRanking returns the global user leaderboard with optional identity redaction.
+func (s *UsageService) GetUserUsageRanking(ctx context.Context, params UsageRankingParams) ([]UsageRankingItem, *pagination.PaginationResult, error) {
+	type usageRankingRepo interface {
+		GetUserUsageRanking(ctx context.Context, params pagination.PaginationParams, rankBy usagestats.UserUsageRankingSort, startTime, endTime time.Time) ([]usagestats.UserUsageRankingItem, *pagination.PaginationResult, error)
+	}
+	repo, ok := s.usageRepo.(usageRankingRepo)
+	if !ok {
+		return nil, nil, fmt.Errorf("usage ranking repository is not available")
+	}
+
+	rows, result, err := repo.GetUserUsageRanking(ctx, pagination.PaginationParams{
+		Page:     params.Page,
+		PageSize: params.PageSize,
+	}, params.RankBy, params.StartTime, params.EndTime)
+	if err != nil {
+		return nil, nil, fmt.Errorf("get user usage ranking: %w", err)
+	}
+
+	out := make([]UsageRankingItem, 0, len(rows))
+	for _, row := range rows {
+		item := UsageRankingItem{
+			Rank:            row.Rank,
+			Nickname:        row.Nickname,
+			Email:           row.Email,
+			Requests:        row.Requests,
+			TotalTokens:     row.TotalTokens,
+			TotalActualCost: row.TotalActualCost,
+		}
+		if params.IncludeIdentity {
+			id := row.UserID
+			item.UserID = &id
+		} else {
+			item.Nickname = maskUsageRankingNickname(item.Nickname)
+			item.Email = maskUsageRankingEmail(item.Email)
+		}
+		out = append(out, item)
+	}
+	return out, result, nil
+}
+
+func maskUsageRankingNickname(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "User"
+	}
+	runes := []rune(value)
+	if len(runes) <= 1 {
+		return string(runes[0]) + "*"
+	}
+	if len(runes) == 2 {
+		return string(runes[0]) + "*"
+	}
+	return string(runes[0]) + strings.Repeat("*", len(runes)-2) + string(runes[len(runes)-1])
+}
+
+func maskUsageRankingEmail(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	parts := strings.SplitN(value, "@", 2)
+	if len(parts) != 2 {
+		return maskUsageRankingNickname(value)
+	}
+	local := []rune(parts[0])
+	domain := parts[1]
+	if len(local) == 0 {
+		return "***@" + domain
+	}
+	if len(local) == 1 {
+		return string(local[0]) + "***@" + domain
+	}
+	return string(local[0]) + strings.Repeat("*", maxUsageRankingInt(3, len(local)-1)) + "@" + domain
+}
+
+func maxUsageRankingInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

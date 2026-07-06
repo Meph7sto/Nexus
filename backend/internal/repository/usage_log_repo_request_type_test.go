@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/nexus/internal/pkg/pagination"
+	"github.com/Wei-Shaw/nexus/internal/pkg/usagestats"
+	"github.com/Wei-Shaw/nexus/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -698,6 +698,54 @@ func TestUsageLogRepositoryGetUserSpendingRanking(t *testing.T) {
 		TotalRequests:   30,
 		TotalTokens:     2600,
 	}, got)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetUserUsageRankingOrdersByTokens(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+	start := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+
+	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\).*ranked_users").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(2)))
+	mock.ExpectQuery("(?s)ROW_NUMBER\\(\\) OVER \\(ORDER BY total_tokens DESC, total_actual_cost DESC, user_id ASC\\)").
+		WithArgs(start, end, 10, 10).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"rank", "user_id", "nickname", "email", "requests", "total_tokens", "total_actual_cost",
+		}).AddRow(int64(11), int64(2), "beta", "beta@example.com", int64(7), int64(900), 1.25))
+
+	got, page, err := repo.GetUserUsageRanking(context.Background(), pagination.PaginationParams{Page: 2, PageSize: 10}, usagestats.UserUsageRankingByTokens, start, end)
+	require.NoError(t, err)
+	require.Equal(t, []usagestats.UserUsageRankingItem{{
+		Rank: 11, UserID: 2, Nickname: "beta", Email: "beta@example.com", Requests: 7, TotalTokens: 900, TotalActualCost: 1.25,
+	}}, got)
+	require.Equal(t, int64(2), page.Total)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetUserUsageRankingOrdersByCost(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+	start := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+
+	mock.ExpectQuery("(?s)SELECT COUNT\\(\\*\\).*ranked_users").
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(1)))
+	mock.ExpectQuery("(?s)ROW_NUMBER\\(\\) OVER \\(ORDER BY total_actual_cost DESC, total_tokens DESC, user_id ASC\\)").
+		WithArgs(start, end, 20, 0).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"rank", "user_id", "nickname", "email", "requests", "total_tokens", "total_actual_cost",
+		}).AddRow(int64(1), int64(1), "alpha", "alpha@example.com", int64(4), int64(300), 9.5))
+
+	got, page, err := repo.GetUserUsageRanking(context.Background(), pagination.PaginationParams{Page: 1, PageSize: 20}, usagestats.UserUsageRankingByCost, start, end)
+	require.NoError(t, err)
+	require.Equal(t, []usagestats.UserUsageRankingItem{{
+		Rank: 1, UserID: 1, Nickname: "alpha", Email: "alpha@example.com", Requests: 4, TotalTokens: 300, TotalActualCost: 9.5,
+	}}, got)
+	require.Equal(t, int64(1), page.Total)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

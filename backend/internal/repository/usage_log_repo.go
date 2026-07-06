@@ -13,18 +13,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	dbent "github.com/Wei-Shaw/sub2api/ent"
-	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
-	dbapikey "github.com/Wei-Shaw/sub2api/ent/apikey"
-	dbgroup "github.com/Wei-Shaw/sub2api/ent/group"
-	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
-	dbuser "github.com/Wei-Shaw/sub2api/ent/user"
-	dbusersub "github.com/Wei-Shaw/sub2api/ent/usersubscription"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
-	"github.com/Wei-Shaw/sub2api/internal/service"
+	dbent "github.com/Wei-Shaw/nexus/ent"
+	dbaccount "github.com/Wei-Shaw/nexus/ent/account"
+	dbapikey "github.com/Wei-Shaw/nexus/ent/apikey"
+	dbgroup "github.com/Wei-Shaw/nexus/ent/group"
+	"github.com/Wei-Shaw/nexus/ent/schema/mixins"
+	dbuser "github.com/Wei-Shaw/nexus/ent/user"
+	dbusersub "github.com/Wei-Shaw/nexus/ent/usersubscription"
+	"github.com/Wei-Shaw/nexus/internal/pkg/logger"
+	"github.com/Wei-Shaw/nexus/internal/pkg/pagination"
+	"github.com/Wei-Shaw/nexus/internal/pkg/timezone"
+	"github.com/Wei-Shaw/nexus/internal/pkg/usagestats"
+	"github.com/Wei-Shaw/nexus/internal/service"
 	"github.com/lib/pq"
 	gocache "github.com/patrickmn/go-cache"
 	"golang.org/x/sync/errgroup"
@@ -2492,6 +2492,103 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		TotalRequests:   totalRequests,
 		TotalTokens:     totalTokens,
 	}, nil
+}
+
+// GetUserUsageRanking returns a paginated global user leaderboard for the requested metric.
+func (r *usageLogRepository) GetUserUsageRanking(ctx context.Context, params pagination.PaginationParams, rankBy usagestats.UserUsageRankingSort, startTime, endTime time.Time) (results []usagestats.UserUsageRankingItem, page *pagination.PaginationResult, err error) {
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 20
+	}
+
+	var total int64
+	countQuery := `
+		SELECT COUNT(*)
+		FROM (
+			SELECT ul.user_id
+			FROM usage_logs ul
+			WHERE ul.created_at >= $1 AND ul.created_at < $2
+			GROUP BY ul.user_id
+		) ranked_users
+	`
+	if err := scanSingleRow(ctx, r.sql, countQuery, []any{startTime, endTime}, &total); err != nil {
+		return nil, nil, err
+	}
+
+	orderBy := "total_tokens DESC, total_actual_cost DESC, user_id ASC"
+	if rankBy == usagestats.UserUsageRankingByCost {
+		orderBy = "total_actual_cost DESC, total_tokens DESC, user_id ASC"
+	}
+
+	query := fmt.Sprintf(`
+		WITH user_usage AS (
+			SELECT
+				ul.user_id,
+				COALESCE(us.email, '') AS email,
+				COALESCE(
+					NULLIF(TRIM(us.username), ''),
+					NULLIF(SPLIT_PART(COALESCE(us.email, ''), '@', 1), ''),
+					'User #' || ul.user_id::text
+				) AS nickname,
+				COUNT(*) AS requests,
+				COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) AS total_tokens,
+				COALESCE(SUM(ul.actual_cost), 0) AS total_actual_cost
+			FROM usage_logs ul
+			LEFT JOIN users us ON ul.user_id = us.id
+			WHERE ul.created_at >= $1 AND ul.created_at < $2
+			GROUP BY ul.user_id, us.email, us.username
+		),
+		ranked AS (
+			SELECT
+				ROW_NUMBER() OVER (ORDER BY %s) AS rank,
+				user_id,
+				nickname,
+				email,
+				requests,
+				total_tokens,
+				total_actual_cost
+			FROM user_usage
+		)
+		SELECT
+			rank,
+			user_id,
+			nickname,
+			email,
+			requests,
+			total_tokens,
+			total_actual_cost
+		FROM ranked
+		ORDER BY rank ASC
+		LIMIT $3 OFFSET $4
+	`, orderBy)
+
+	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, params.Limit(), params.Offset())
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			results = nil
+			page = nil
+		}
+	}()
+
+	results = make([]usagestats.UserUsageRankingItem, 0)
+	for rows.Next() {
+		var row usagestats.UserUsageRankingItem
+		if err = rows.Scan(&row.Rank, &row.UserID, &row.Nickname, &row.Email, &row.Requests, &row.TotalTokens, &row.TotalActualCost); err != nil {
+			return nil, nil, err
+		}
+		results = append(results, row)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	return results, paginationResultFromTotal(total, params), nil
 }
 
 // UserDashboardStats 用户仪表盘统计
