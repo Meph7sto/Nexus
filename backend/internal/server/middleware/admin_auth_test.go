@@ -25,7 +25,7 @@ func TestAdminAuthJWTValidatesTokenVersion(t *testing.T) {
 	admin := &service.User{
 		ID:           1,
 		Email:        "admin@example.com",
-		Role:         service.RoleAdmin,
+		Role:         service.RoleSuperAdmin,
 		Status:       service.StatusActive,
 		TokenVersion: 2,
 		Concurrency:  1,
@@ -121,6 +121,47 @@ func TestAdminAuthJWTValidatesTokenVersion(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, w.Code)
 	})
+}
+
+func TestAdminAuth_AllowsLimitedAdminJWT(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	cfg := &config.Config{JWT: config.JWTConfig{Secret: "test-secret", ExpireHour: 1}}
+	authService := service.NewAuthService(nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
+	limitedAdmin := &service.User{
+		ID:           2,
+		Email:        "limited-admin@example.com",
+		Role:         service.RoleAdmin,
+		Status:       service.StatusActive,
+		TokenVersion: 1,
+		Concurrency:  1,
+	}
+	userRepo := &stubUserRepo{
+		getByID: func(ctx context.Context, id int64) (*service.User, error) {
+			if id != limitedAdmin.ID {
+				return nil, service.ErrUserNotFound
+			}
+			clone := *limitedAdmin
+			return &clone, nil
+		},
+	}
+	userService := service.NewUserService(userRepo, nil, nil, nil)
+
+	router := gin.New()
+	router.Use(gin.HandlerFunc(NewAdminAuthMiddleware(authService, userService, nil)))
+	router.GET("/t", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	token, err := authService.GenerateToken(limitedAdmin)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/t", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
 }
 
 type stubUserRepo struct {
