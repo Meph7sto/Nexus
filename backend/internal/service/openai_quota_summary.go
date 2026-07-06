@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -242,8 +244,14 @@ func openAIQuotaSummaryRemaining(account *Account, usedKey, resetKey string, pro
 	if !ok {
 		return 100, true
 	}
+	if !openAIQuotaSummaryUsedPercentIsParseable(rawUsed) {
+		return 100, true
+	}
 	resetAt := account.getExtraTime(resetKey)
-	if !resetAt.IsZero() && !projectionAt.Before(resetAt) {
+	if resetAt.IsZero() {
+		return 100, true
+	}
+	if !projectionAt.Before(resetAt) {
 		return 100, false
 	}
 	return 100 - clampPercent(parseExtraFloat64(rawUsed)), false
@@ -272,6 +280,20 @@ func earlierOpenAIQuotaRecovery(current, candidate *OpenAIQuotaRecovery) *OpenAI
 		return candidate
 	}
 	return current
+}
+
+func openAIQuotaSummaryUsedPercentIsParseable(value any) bool {
+	switch v := value.(type) {
+	case float64, float32, int, int64:
+		return true
+	case json.Number:
+		_, err := v.Float64()
+		return err == nil
+	case string:
+		_, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		return err == nil
+	}
+	return false
 }
 
 func openAIQuotaSummaryGroupKey(membership openAIQuotaSummaryGroupMembership) string {

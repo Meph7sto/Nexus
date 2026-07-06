@@ -47,6 +47,48 @@ func TestBuildOpenAIQuotaSummary_MissingSnapshotsCountAsFullQuota(t *testing.T) 
 	require.InDelta(t, 87.5, row.Avg7DRemainingPercent, 0.001)
 }
 
+func TestBuildOpenAIQuotaSummary_PartialSnapshotsCountAsMissingAndFullQuota(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	group := &Group{ID: 10, Name: "OpenAI Main", Platform: PlatformOpenAI}
+	withSnapshot := openAIQuotaSummaryTestAccount(1, "with", AccountTypeOAuth, StatusActive, 40, 30, now.Add(time.Hour), now.Add(24*time.Hour), group)
+	missingAndBadReset := Account{
+		ID:       2,
+		Name:     "bad-reset",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Groups:   []*Group{group},
+		GroupIDs: []int64{10},
+		Extra: map[string]any{
+			"codex_5h_used_percent": 80,
+			"codex_7d_used_percent": 70,
+			"codex_7d_reset_at":     "not-rfc3339",
+		},
+	}
+	missingAndBadUsed := Account{
+		ID:       3,
+		Name:     "bad-used",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Groups:   []*Group{group},
+		GroupIDs: []int64{10},
+		Extra: map[string]any{
+			"codex_5h_used_percent": "not-a-percent",
+			"codex_5h_reset_at":     now.Add(time.Hour).Format(time.RFC3339),
+			"codex_7d_reset_at":     now.Add(24 * time.Hour).Format(time.RFC3339),
+		},
+	}
+
+	out := BuildOpenAIQuotaSummary([]Account{withSnapshot, missingAndBadReset, missingAndBadUsed}, OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
+
+	row := out.Groups[0].Rows[0]
+	require.Equal(t, 2, row.Missing5HSnapshotCount)
+	require.Equal(t, 2, row.Missing7DSnapshotCount)
+	require.InDelta(t, 86.666, row.Avg5HRemainingPercent, 0.001)
+	require.InDelta(t, 90, row.Avg7DRemainingPercent, 0.001)
+}
+
 func TestBuildOpenAIQuotaSummary_FutureProjectionResetsWindows(t *testing.T) {
 	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
 	group := &Group{ID: 10, Name: "OpenAI Main", Platform: PlatformOpenAI}
