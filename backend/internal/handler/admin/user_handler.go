@@ -12,7 +12,9 @@ import (
 
 	"github.com/Wei-Shaw/nexus/internal/handler/dto"
 	"github.com/Wei-Shaw/nexus/internal/handler/quotaview"
+	infraerrors "github.com/Wei-Shaw/nexus/internal/pkg/errors"
 	"github.com/Wei-Shaw/nexus/internal/pkg/response"
+	"github.com/Wei-Shaw/nexus/internal/server/middleware"
 	"github.com/Wei-Shaw/nexus/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -49,14 +51,16 @@ func NewUserHandler(
 
 // CreateUserRequest represents admin create user request
 type CreateUserRequest struct {
-	Email         string   `json:"email" binding:"required,email"`
-	Password      string   `json:"password" binding:"required,min=6"`
-	Username      string   `json:"username"`
-	Notes         string   `json:"notes"`
-	Balance       *float64 `json:"balance"`
-	Concurrency   int      `json:"concurrency"`
-	RPMLimit      int      `json:"rpm_limit"`
-	AllowedGroups []int64  `json:"allowed_groups"`
+	Email            string                    `json:"email" binding:"required,email"`
+	Password         string                    `json:"password" binding:"required,min=6"`
+	Username         string                    `json:"username"`
+	Notes            string                    `json:"notes"`
+	Role             string                    `json:"role" binding:"omitempty,oneof=user admin super_admin"`
+	Balance          *float64                  `json:"balance"`
+	Concurrency      int                       `json:"concurrency"`
+	RPMLimit         int                       `json:"rpm_limit"`
+	AllowedGroups    []int64                   `json:"allowed_groups"`
+	AdminPermissions []service.AdminPermission `json:"admin_permissions"`
 }
 
 // UpdateUserRequest represents admin update user request
@@ -66,6 +70,7 @@ type UpdateUserRequest struct {
 	Password      string   `json:"password" binding:"omitempty,min=6"`
 	Username      *string  `json:"username"`
 	Notes         *string  `json:"notes"`
+	Role          *string  `json:"role" binding:"omitempty,oneof=user admin super_admin"`
 	Balance       *float64 `json:"balance"`
 	Concurrency   *int     `json:"concurrency"`
 	RPMLimit      *int     `json:"rpm_limit"`
@@ -73,7 +78,8 @@ type UpdateUserRequest struct {
 	AllowedGroups *[]int64 `json:"allowed_groups"`
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
-	GroupRates map[int64]*float64 `json:"group_rates"`
+	GroupRates       map[int64]*float64         `json:"group_rates"`
+	AdminPermissions *[]service.AdminPermission `json:"admin_permissions"`
 }
 
 // UpdateBalanceRequest represents balance update request
@@ -263,16 +269,22 @@ func (h *UserHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if (req.Role == service.RoleAdmin || req.Role == service.RoleSuperAdmin || len(req.AdminPermissions) > 0) && !actorIsSuperAdmin(c) {
+		response.ErrorFrom(c, infraerrors.Forbidden("SUPER_ADMIN_REQUIRED", "super administrator required"))
+		return
+	}
 
 	user, err := h.adminService.CreateUser(c.Request.Context(), &service.CreateUserInput{
-		Email:         req.Email,
-		Password:      req.Password,
-		Username:      req.Username,
-		Notes:         req.Notes,
-		Balance:       req.Balance,
-		Concurrency:   req.Concurrency,
-		RPMLimit:      req.RPMLimit,
-		AllowedGroups: req.AllowedGroups,
+		Email:            req.Email,
+		Password:         req.Password,
+		Username:         req.Username,
+		Notes:            req.Notes,
+		Role:             req.Role,
+		Balance:          req.Balance,
+		Concurrency:      req.Concurrency,
+		RPMLimit:         req.RPMLimit,
+		AllowedGroups:    req.AllowedGroups,
+		AdminPermissions: req.AdminPermissions,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -296,19 +308,25 @@ func (h *UserHandler) Update(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if (req.Role != nil || req.AdminPermissions != nil) && !actorIsSuperAdmin(c) {
+		response.ErrorFrom(c, infraerrors.Forbidden("SUPER_ADMIN_REQUIRED", "super administrator required"))
+		return
+	}
 
 	// 使用指针类型直接传递，nil 表示未提供该字段
 	user, err := h.adminService.UpdateUser(c.Request.Context(), userID, &service.UpdateUserInput{
-		Email:         req.Email,
-		Password:      req.Password,
-		Username:      req.Username,
-		Notes:         req.Notes,
-		Balance:       req.Balance,
-		Concurrency:   req.Concurrency,
-		RPMLimit:      req.RPMLimit,
-		Status:        req.Status,
-		AllowedGroups: req.AllowedGroups,
-		GroupRates:    req.GroupRates,
+		Email:            req.Email,
+		Password:         req.Password,
+		Username:         req.Username,
+		Notes:            req.Notes,
+		Role:             req.Role,
+		Balance:          req.Balance,
+		Concurrency:      req.Concurrency,
+		RPMLimit:         req.RPMLimit,
+		Status:           req.Status,
+		AllowedGroups:    req.AllowedGroups,
+		GroupRates:       req.GroupRates,
+		AdminPermissions: req.AdminPermissions,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -316,6 +334,11 @@ func (h *UserHandler) Update(c *gin.Context) {
 	}
 
 	response.Success(c, dto.UserFromServiceAdmin(user))
+}
+
+func actorIsSuperAdmin(c *gin.Context) bool {
+	role, _ := c.Get(string(middleware.ContextKeyUserRole))
+	return role == service.RoleSuperAdmin
 }
 
 // Delete handles deleting a user

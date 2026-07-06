@@ -602,7 +602,7 @@
  transition:
  padding 0.2s ease,
  gap 0.2s ease;
- }
+  }
 
  .sidebar-nav {
  @apply flex-1 overflow-y-auto px-3 py-4;

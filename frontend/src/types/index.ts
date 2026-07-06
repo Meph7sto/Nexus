@@ -35,6 +35,39 @@ export interface NotifyEmailEntry {
 // ==================== User & Auth Types ====================
 
 export type UserAuthProvider = 'email' | 'linuxdo' | 'oidc' | 'wechat' | 'github' | 'google' | 'dingtalk'
+export type UserRole = 'user' | 'admin' | 'super_admin'
+export type AdminPermissionAction = 'view' | 'create' | 'update' | 'delete' | 'export' | 'execute'
+export type AdminPermissionResource =
+ | 'dashboard'
+ | 'ops'
+ | 'users'
+ | 'groups'
+ | 'channels'
+ | 'channel_monitor'
+ | 'subscriptions'
+ | 'accounts'
+ | 'announcements'
+ | 'proxies'
+ | 'risk_control'
+ | 'redeem_codes'
+ | 'promo_codes'
+ | 'affiliates'
+ | 'orders'
+ | 'usage'
+ | 'settings'
+ | 'system'
+ | 'data_management'
+ | 'backups'
+ | 'user_attributes'
+ | 'error_passthrough_rules'
+ | 'tls_fingerprint_profiles'
+ | 'scheduled_tests'
+ | 'admin_permissions'
+
+export interface AdminPermission {
+ resource: AdminPermissionResource
+ actions: AdminPermissionAction[]
+}
 
 export interface UserAuthBindingStatus {
  bound?: boolean
@@ -84,7 +117,7 @@ export interface User {
  linuxdo_bound?: boolean
  oidc_bound?: boolean
  wechat_bound?: boolean
- role: 'admin' | 'user' // User role for authorization
+ role: UserRole // User role for authorization
  balance: number // User balance for API usage
  concurrency: number // Allowed concurrent requests
  rpm_limit?: number // User-level RPM cap (0 = unlimited); effective as fallback when group has no rpm_limit
@@ -94,6 +127,7 @@ export interface User {
  balance_notify_threshold: number | null
  balance_notify_extra_emails: NotifyEmailEntry[]
  subscriptions?: UserSubscription[] // User's active subscriptions
+ admin_permissions?: AdminPermission[]
  last_active_at?: string | null
  created_at: string
  updated_at: string
@@ -1611,7 +1645,8 @@ export interface UpdateUserRequest {
  password?: string
  username?: string
  notes?: string
- role?: 'admin' | 'user'
+ role?: UserRole
+ admin_permissions?: AdminPermission[]
  balance?: number
  concurrency?: number
  status?: 'active' | 'disabled'

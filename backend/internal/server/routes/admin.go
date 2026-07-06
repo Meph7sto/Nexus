@@ -2,6 +2,9 @@
 package routes
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/Wei-Shaw/nexus/internal/handler"
 	"github.com/Wei-Shaw/nexus/internal/server/middleware"
 	"github.com/Wei-Shaw/nexus/internal/service"
@@ -14,11 +17,13 @@ func RegisterAdminRoutes(
 	v1 *gin.RouterGroup,
 	h *handler.Handlers,
 	adminAuth middleware.AdminAuthMiddleware,
+	adminPerm middleware.AdminPermissionMiddleware,
 	settingService *service.SettingService,
 ) {
 	admin := v1.Group("/admin")
 	admin.Use(gin.HandlerFunc(adminAuth))
 	admin.Use(middleware.AdminComplianceGuard(settingService))
+	admin.Use(adminRoutePermissionGuard(adminPerm))
 	{
 		// 部署与运营合规确认
 		registerAdminComplianceRoutes(admin, h)
@@ -107,6 +112,117 @@ func RegisterAdminRoutes(
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
 	}
+}
+
+func adminRoutePermissionGuard(adminPerm middleware.AdminPermissionMiddleware) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if adminPerm == nil {
+			c.Next()
+			return
+		}
+		resource := adminResourceForPath(c.FullPath(), c.Request.URL.Path)
+		action := adminActionForRequest(c.Request.Method, c.FullPath(), c.Request.URL.Path)
+		adminPerm(resource, action)(c)
+	}
+}
+
+func adminResourceForPath(fullPath, rawPath string) service.AdminPermissionResource {
+	path := strings.ToLower(fullPath)
+	if path == "" {
+		path = strings.ToLower(rawPath)
+	}
+	switch {
+	case strings.Contains(path, "/admin/payment"), strings.Contains(path, "/admin/orders"):
+		return service.AdminResourceOrders
+	case strings.Contains(path, "/admin/ops"):
+		return service.AdminResourceOps
+	case strings.Contains(path, "/admin/users/") && strings.Contains(path, "/attributes"):
+		return service.AdminResourceUserAttributes
+	case strings.Contains(path, "/admin/users"):
+		return service.AdminResourceUsers
+	case strings.Contains(path, "/admin/groups"):
+		return service.AdminResourceGroups
+	case strings.Contains(path, "/admin/accounts"), strings.Contains(path, "/admin/oauth"), strings.Contains(path, "/admin/openai"), strings.Contains(path, "/admin/gemini"), strings.Contains(path, "/admin/antigravity"), strings.Contains(path, "/admin/grok"):
+		return service.AdminResourceAccounts
+	case strings.Contains(path, "/admin/announcements"):
+		return service.AdminResourceAnnouncements
+	case strings.Contains(path, "/admin/proxies"):
+		return service.AdminResourceProxies
+	case strings.Contains(path, "/admin/redeem-codes"):
+		return service.AdminResourceRedeemCodes
+	case strings.Contains(path, "/admin/promo-codes"):
+		return service.AdminResourcePromoCodes
+	case strings.Contains(path, "/admin/settings"):
+		return service.AdminResourceSettings
+	case strings.Contains(path, "/admin/data-management"):
+		return service.AdminResourceDataManagement
+	case strings.Contains(path, "/admin/backups"):
+		return service.AdminResourceBackups
+	case strings.Contains(path, "/admin/system"), strings.Contains(path, "/admin/api-keys"):
+		return service.AdminResourceSystem
+	case strings.Contains(path, "/admin/subscriptions"):
+		return service.AdminResourceSubscriptions
+	case strings.Contains(path, "/admin/usage"):
+		return service.AdminResourceUsage
+	case strings.Contains(path, "/admin/user-attributes"):
+		return service.AdminResourceUserAttributes
+	case strings.Contains(path, "/admin/error-passthrough-rules"):
+		return service.AdminResourceErrorPassthroughRules
+	case strings.Contains(path, "/admin/tls-fingerprint-profiles"):
+		return service.AdminResourceTLSFingerprintProfiles
+	case strings.Contains(path, "/admin/scheduled-test"):
+		return service.AdminResourceScheduledTests
+	case strings.Contains(path, "/admin/channels/monitor"), strings.Contains(path, "/admin/channel-monitors"), strings.Contains(path, "/admin/channel-monitor-templates"):
+		return service.AdminResourceChannelMonitor
+	case strings.Contains(path, "/admin/channels"):
+		return service.AdminResourceChannels
+	case strings.Contains(path, "/admin/risk-control"):
+		return service.AdminResourceRiskControl
+	case strings.Contains(path, "/admin/affiliates"):
+		return service.AdminResourceAffiliates
+	case strings.Contains(path, "/admin/dashboard"):
+		return service.AdminResourceDashboard
+	case strings.Contains(path, "/admin/compliance"):
+		return service.AdminResourceAdminPermissions
+	default:
+		return service.AdminResourceDashboard
+	}
+}
+
+func adminActionForRequest(method, fullPath, rawPath string) service.AdminPermissionAction {
+	path := strings.ToLower(fullPath)
+	if path == "" {
+		path = strings.ToLower(rawPath)
+	}
+	switch method {
+	case http.MethodGet:
+		if strings.Contains(path, "export") || strings.Contains(path, "download") || strings.Contains(path, "/data") {
+			return service.AdminActionExport
+		}
+		return service.AdminActionView
+	case http.MethodDelete:
+		return service.AdminActionDelete
+	case http.MethodPut, http.MethodPatch:
+		return service.AdminActionUpdate
+	case http.MethodPost:
+		if adminPostIsExecute(path) {
+			return service.AdminActionExecute
+		}
+		return service.AdminActionCreate
+	default:
+		return service.AdminActionView
+	}
+}
+
+func adminPostIsExecute(path string) bool {
+	for _, token := range []string{
+		"test", "sync", "refresh", "reset", "recover", "run", "batch", "backfill", "cleanup", "cancel", "retry", "refund", "update-service", "restart", "rollback", "clear-error", "clear-rate-limit", "schedulable", "unban", "replace-group", "balance",
+	} {
+		if strings.Contains(path, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func registerAdminComplianceRoutes(admin *gin.RouterGroup, h *handler.Handlers) {

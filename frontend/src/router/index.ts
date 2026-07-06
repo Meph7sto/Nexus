@@ -12,6 +12,7 @@ import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
+import { applyAdminRoutePermissionMeta, firstAllowedAdminPath } from '@/utils/adminPermissions'
 
 /**
  * Route definitions with lazy loading
@@ -675,6 +676,8 @@ const routes: RouteRecordRaw[] = [
  }
 ]
 
+applyAdminRoutePermissionMeta(routes)
+
 /**
  * Create router instance
  */
@@ -745,7 +748,7 @@ router.beforeEach(async (to, _from, next) => {
  const adminSettingsStore = useAdminSettingsStore()
  const customMenuItems = [
  ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
- ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
+ ...(authStore.isAdminLike ? adminSettingsStore.customMenuItems : []),
  ]
  document.title = resolveRouteDocumentTitle(to, appStore.siteName, customMenuItems)
 
@@ -757,7 +760,7 @@ router.beforeEach(async (to, _from, next) => {
  try {
  const status = await getSetupStatus()
  if (!status.needs_setup) {
- next(resolveCompletedSetupRedirectPath(authStore.isAuthenticated, authStore.isAdmin))
+ next(resolveCompletedSetupRedirectPath(authStore.isAuthenticated, authStore.isAdminLike))
  return
  }
  } catch {
@@ -771,12 +774,12 @@ router.beforeEach(async (to, _from, next) => {
  if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
  // In backend mode, non-admin users should NOT be redirected away from login
  // (they are blocked from all protected routes, so redirecting would cause a loop)
- if (appStore.backendModeEnabled && !authStore.isAdmin) {
+ if (appStore.backendModeEnabled && !authStore.isAdminLike) {
  next()
  return
  }
  // Admin users go to admin dashboard, regular users go to user dashboard
- next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+ next(authStore.isAdminLike ? (firstAllowedAdminPath(routes, authStore.canAdmin) ?? '/dashboard') : '/dashboard')
  return
  }
  // Backend mode: block public pages for unauthenticated users (except login, key-usage, setup)
@@ -802,9 +805,14 @@ router.beforeEach(async (to, _from, next) => {
  }
 
  // Check admin requirement
- if (requiresAdmin && !authStore.isAdmin) {
+ if (requiresAdmin && !authStore.isAdminLike) {
  // User is authenticated but not admin, redirect to user dashboard
  next('/dashboard')
+ return
+ }
+
+ if (requiresAdmin && to.meta.adminResource && !authStore.canAdmin(to.meta.adminResource, to.meta.adminAction ?? 'view')) {
+ next(firstAllowedAdminPath(routes, authStore.canAdmin) ?? '/dashboard')
  return
  }
 
@@ -813,7 +821,7 @@ router.beforeEach(async (to, _from, next) => {
  if (to.meta.requiresPayment) {
  const paymentEnabled = appStore.cachedPublicSettings?.payment_enabled
  if (!paymentEnabled) {
- next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+ next(authStore.isAdminLike ? (firstAllowedAdminPath(routes, authStore.canAdmin) ?? '/dashboard') : '/dashboard')
  return
  }
  }
@@ -821,7 +829,7 @@ router.beforeEach(async (to, _from, next) => {
  if (to.meta.requiresRiskControl) {
  const riskControlEnabled = appStore.cachedPublicSettings?.risk_control_enabled === true
  if (!riskControlEnabled) {
- next(authStore.isAdmin ? '/admin/settings' : '/dashboard')
+ next(authStore.canAdmin('settings', 'view') ? '/admin/settings' : (firstAllowedAdminPath(routes, authStore.canAdmin) ?? '/dashboard'))
  return
  }
  }
@@ -838,14 +846,14 @@ router.beforeEach(async (to, _from, next) => {
 
  if (restrictedPaths.some((path) => to.path.startsWith(path))) {
  // 简易模式下访问受限页面,重定向到仪表板
- next(authStore.isAdmin ? '/admin/dashboard' : '/dashboard')
+ next(authStore.isAdminLike ? (firstAllowedAdminPath(routes, authStore.canAdmin) ?? '/dashboard') : '/dashboard')
  return
  }
  }
 
  // Backend mode: admin gets full access, non-admin blocked
  if (appStore.backendModeEnabled) {
- if (authStore.isAuthenticated && authStore.isAdmin) {
+ if (authStore.isAuthenticated && authStore.isAdminLike) {
  next()
  return
  }

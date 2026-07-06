@@ -61,10 +61,20 @@ type User struct {
 
 	APIKeys       []APIKey
 	Subscriptions []UserSubscription
+
+	AdminPermissions []AdminPermission
 }
 
 func (u *User) IsAdmin() bool {
 	return u.Role == RoleAdmin
+}
+
+func (u *User) IsSuperAdmin() bool {
+	return u.Role == RoleSuperAdmin
+}
+
+func (u *User) IsAdminLike() bool {
+	return u.IsAdmin() || u.IsSuperAdmin()
 }
 
 func (u *User) IsActive() bool {

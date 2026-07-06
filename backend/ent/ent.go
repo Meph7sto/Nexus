@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/Wei-Shaw/nexus/ent/account"
 	"github.com/Wei-Shaw/nexus/ent/accountgroup"
+	"github.com/Wei-Shaw/nexus/ent/adminpermission"
 	"github.com/Wei-Shaw/nexus/ent/announcement"
 	"github.com/Wei-Shaw/nexus/ent/announcementread"
 	"github.com/Wei-Shaw/nexus/ent/apikey"
@@ -110,6 +111,7 @@ func checkColumn(t, c string) error {
 			apikey.Table:                        apikey.ValidColumn,
 			account.Table:                       account.ValidColumn,
 			accountgroup.Table:                  accountgroup.ValidColumn,
+			adminpermission.Table:               adminpermission.ValidColumn,
 			announcement.Table:                  announcement.ValidColumn,
 			announcementread.Table:              announcementread.ValidColumn,
 			authidentity.Table:                  authidentity.ValidColumn,

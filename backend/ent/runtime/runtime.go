@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wei-Shaw/nexus/ent/account"
 	"github.com/Wei-Shaw/nexus/ent/accountgroup"
+	"github.com/Wei-Shaw/nexus/ent/adminpermission"
 	"github.com/Wei-Shaw/nexus/ent/announcement"
 	"github.com/Wei-Shaw/nexus/ent/announcementread"
 	"github.com/Wei-Shaw/nexus/ent/apikey"
@@ -262,6 +263,25 @@ func init() {
 	accountgroupDescCreatedAt := accountgroupFields[3].Descriptor()
 	// accountgroup.DefaultCreatedAt holds the default value on creation for the created_at field.
 	accountgroup.DefaultCreatedAt = accountgroupDescCreatedAt.Default.(func() time.Time)
+	adminpermissionMixin := schema.AdminPermission{}.Mixin()
+	adminpermissionMixinFields0 := adminpermissionMixin[0].Fields()
+	_ = adminpermissionMixinFields0
+	adminpermissionFields := schema.AdminPermission{}.Fields()
+	_ = adminpermissionFields
+	// adminpermissionDescCreatedAt is the schema descriptor for created_at field.
+	adminpermissionDescCreatedAt := adminpermissionMixinFields0[0].Descriptor()
+	// adminpermission.DefaultCreatedAt holds the default value on creation for the created_at field.
+	adminpermission.DefaultCreatedAt = adminpermissionDescCreatedAt.Default.(func() time.Time)
+	// adminpermissionDescUpdatedAt is the schema descriptor for updated_at field.
+	adminpermissionDescUpdatedAt := adminpermissionMixinFields0[1].Descriptor()
+	// adminpermission.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	adminpermission.DefaultUpdatedAt = adminpermissionDescUpdatedAt.Default.(func() time.Time)
+	// adminpermission.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	adminpermission.UpdateDefaultUpdatedAt = adminpermissionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// adminpermissionDescResource is the schema descriptor for resource field.
+	adminpermissionDescResource := adminpermissionFields[1].Descriptor()
+	// adminpermission.ResourceValidator is a validator for the "resource" field. It is called by the builders before save.
+	adminpermission.ResourceValidator = adminpermissionDescResource.Validators[0].(func(string) error)
 	announcementFields := schema.Announcement{}.Fields()
 	_ = announcementFields
 	// announcementDescTitle is the schema descriptor for title field.

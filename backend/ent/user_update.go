@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/nexus/ent/adminpermission"
 	"github.com/Wei-Shaw/nexus/ent/announcementread"
 	"github.com/Wei-Shaw/nexus/ent/apikey"
 	"github.com/Wei-Shaw/nexus/ent/authidentity"
@@ -606,6 +607,21 @@ func (_u *UserUpdate) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdate {
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// AddAdminPermissionIDs adds the "admin_permissions" edge to the AdminPermission entity by IDs.
+func (_u *UserUpdate) AddAdminPermissionIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddAdminPermissionIDs(ids...)
+	return _u
+}
+
+// AddAdminPermissions adds the "admin_permissions" edges to the AdminPermission entity.
+func (_u *UserUpdate) AddAdminPermissions(v ...*AdminPermission) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAdminPermissionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -882,6 +898,27 @@ func (_u *UserUpdate) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpdate 
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearAdminPermissions clears all "admin_permissions" edges to the AdminPermission entity.
+func (_u *UserUpdate) ClearAdminPermissions() *UserUpdate {
+	_u.mutation.ClearAdminPermissions()
+	return _u
+}
+
+// RemoveAdminPermissionIDs removes the "admin_permissions" edge to AdminPermission entities by IDs.
+func (_u *UserUpdate) RemoveAdminPermissionIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveAdminPermissionIDs(ids...)
+	return _u
+}
+
+// RemoveAdminPermissions removes "admin_permissions" edges to AdminPermission entities.
+func (_u *UserUpdate) RemoveAdminPermissions(v ...*AdminPermission) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAdminPermissionIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1669,6 +1706,51 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.AdminPermissionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AdminPermissionsTable,
+			Columns: []string{user.AdminPermissionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(adminpermission.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAdminPermissionsIDs(); len(nodes) > 0 && !_u.mutation.AdminPermissionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AdminPermissionsTable,
+			Columns: []string{user.AdminPermissionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(adminpermission.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AdminPermissionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AdminPermissionsTable,
+			Columns: []string{user.AdminPermissionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(adminpermission.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -2255,6 +2337,21 @@ func (_u *UserUpdateOne) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdateO
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// AddAdminPermissionIDs adds the "admin_permissions" edge to the AdminPermission entity by IDs.
+func (_u *UserUpdateOne) AddAdminPermissionIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddAdminPermissionIDs(ids...)
+	return _u
+}
+
+// AddAdminPermissions adds the "admin_permissions" edges to the AdminPermission entity.
+func (_u *UserUpdateOne) AddAdminPermissions(v ...*AdminPermission) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddAdminPermissionIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -2531,6 +2628,27 @@ func (_u *UserUpdateOne) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpda
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearAdminPermissions clears all "admin_permissions" edges to the AdminPermission entity.
+func (_u *UserUpdateOne) ClearAdminPermissions() *UserUpdateOne {
+	_u.mutation.ClearAdminPermissions()
+	return _u
+}
+
+// RemoveAdminPermissionIDs removes the "admin_permissions" edge to AdminPermission entities by IDs.
+func (_u *UserUpdateOne) RemoveAdminPermissionIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveAdminPermissionIDs(ids...)
+	return _u
+}
+
+// RemoveAdminPermissions removes "admin_permissions" edges to AdminPermission entities.
+func (_u *UserUpdateOne) RemoveAdminPermissions(v ...*AdminPermission) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveAdminPermissionIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -3341,6 +3459,51 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userplatformquota.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.AdminPermissionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AdminPermissionsTable,
+			Columns: []string{user.AdminPermissionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(adminpermission.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedAdminPermissionsIDs(); len(nodes) > 0 && !_u.mutation.AdminPermissionsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AdminPermissionsTable,
+			Columns: []string{user.AdminPermissionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(adminpermission.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.AdminPermissionsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AdminPermissionsTable,
+			Columns: []string{user.AdminPermissionsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(adminpermission.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {
