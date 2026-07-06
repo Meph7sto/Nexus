@@ -764,6 +764,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import { useAdminPermissionGate } from '@/composables/useAdminPermissionGate'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatDateTime } from '@/utils/format'
@@ -800,6 +801,7 @@ import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryM
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
+const authStore = useAuthStore()
 const { canCreate, canUpdate, canDelete, canExecute } = useAdminPermissionGate('users')
 
 const roleLabel = (role: UserRole) => {
@@ -1687,7 +1689,19 @@ const applyFilter = () => {
   loadUsers()
 }
 
-const handleEdit = (user: AdminUser) => {
+const handleEdit = async (user: AdminUser) => {
+  if (authStore.isSuperAdmin && user.role === 'admin') {
+    try {
+      editingUser.value = await adminAPI.users.getById(user.id)
+      showEditModal.value = true
+      return
+    } catch (error: any) {
+      const message = error.response?.data?.detail || error.message || t('admin.users.failedToLoad')
+      appStore.showError(message)
+      console.error('Error loading user details:', error)
+      return
+    }
+  }
   editingUser.value = user
   showEditModal.value = true
 }

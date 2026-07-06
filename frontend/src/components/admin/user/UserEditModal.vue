@@ -47,7 +47,18 @@
           <table class="min-w-full text-sm">
             <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-dark-400">
               <tr>
-                <th class="px-3 py-2 text-left">Module</th>
+                <th class="px-3 py-2 text-left">
+                  <label class="inline-flex items-center gap-2 normal-case text-gray-600 dark:text-dark-300">
+                    <input
+                      type="checkbox"
+                      class="h-4 w-4 rounded border-gray-300"
+                      data-test="perm-select-all"
+                      :checked="allAssignablePermissionsSelected"
+                      @change="setAllPermissions(($event.target as HTMLInputElement).checked)"
+                    />
+                    <span>All</span>
+                  </label>
+                </th>
                 <th v-for="action in ADMIN_PERMISSION_ACTIONS" :key="action" class="px-3 py-2 text-center">
                   {{ action }}
                 </th>
@@ -194,6 +205,12 @@ function hasPermission(resource: AdminPermissionResource, action: AdminPermissio
   return form.admin_permissions.some((perm) => perm.resource === resource && perm.actions.includes(action))
 }
 
+const allAssignablePermissionsSelected = computed(() =>
+  assignablePermissionRows.every((row) =>
+    row.actions.every((action) => hasPermission(row.resource, action))
+  )
+)
+
 function setPermission(resource: AdminPermissionResource, action: AdminPermissionAction, checked: boolean): void {
   let perm = form.admin_permissions.find((item) => item.resource === resource)
   if (!perm) {
@@ -213,6 +230,22 @@ function setPermission(resource: AdminPermissionResource, action: AdminPermissio
   if (perm.actions.length === 0 && rowIndex >= 0) {
     form.admin_permissions.splice(rowIndex, 1)
   }
+}
+
+function setAllPermissions(checked: boolean): void {
+  const assignableResources = new Set(assignablePermissionRows.map((row) => row.resource))
+  const preserved = form.admin_permissions.filter((perm) => !assignableResources.has(perm.resource))
+  if (!checked) {
+    form.admin_permissions = preserved
+    return
+  }
+  form.admin_permissions = [
+    ...preserved,
+    ...assignablePermissionRows.map((row) => ({
+      resource: row.resource,
+      actions: [...row.actions],
+    })),
+  ]
 }
 
 function buildAdminPermissionsPayload(): AdminPermission[] {

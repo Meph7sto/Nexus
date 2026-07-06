@@ -720,11 +720,37 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 			user.GroupRates = rates
 		}
 	}
+	if err := s.loadAdminPermissionsForUser(ctx, user); err != nil {
+		return nil, err
+	}
 	return user, nil
 }
 
 func (s *adminServiceImpl) GetUserIncludeDeleted(ctx context.Context, id int64) (*User, error) {
-	return s.userRepo.GetByIDIncludeDeleted(ctx, id)
+	user, err := s.userRepo.GetByIDIncludeDeleted(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.loadAdminPermissionsForUser(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *adminServiceImpl) loadAdminPermissionsForUser(ctx context.Context, user *User) error {
+	if user == nil || s.adminPermissionRepo == nil {
+		return nil
+	}
+	if user.Role != RoleAdmin {
+		user.AdminPermissions = nil
+		return nil
+	}
+	perms, err := s.adminPermissionRepo.ListByUserID(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	user.AdminPermissions = perms
+	return nil
 }
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {

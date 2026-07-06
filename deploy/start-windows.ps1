@@ -51,6 +51,17 @@ function Get-EnvValue {
     return ($line -split "=", 2)[1].Trim()
 }
 
+function Invoke-Docker {
+    param(
+        [string[]]$Arguments
+    )
+
+    & docker @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "docker $($Arguments -join ' ') failed with exit code $LASTEXITCODE"
+    }
+}
+
 $deployDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location -LiteralPath $deployDir
 
@@ -115,14 +126,14 @@ New-Item -ItemType Directory -Force -Path `
     (Join-Path $deployDir "redis_data") | Out-Null
 
 if ($Pull) {
-    & docker @($composeArgs + @("pull"))
+    Invoke-Docker -Arguments ($composeArgs + @("pull"))
 }
 
 $upArgs = $composeArgs + @("up", "-d")
 if ($UseLocalBuild) {
     $upArgs += "--build"
 }
-& docker @upArgs
+Invoke-Docker -Arguments $upArgs
 
 $port = Get-EnvValue -Path $envPath -Name "SERVER_PORT"
 if ([string]::IsNullOrWhiteSpace($port)) {
@@ -136,5 +147,5 @@ $composeDisplay = (($composeFiles | ForEach-Object { "-f $_" }) -join " ")
 Write-Host "Logs:   docker compose $composeDisplay logs -f nexus"
 
 if ($Logs) {
-    & docker @($composeArgs + @("logs", "-f", "nexus"))
+    Invoke-Docker -Arguments ($composeArgs + @("logs", "-f", "nexus"))
 }

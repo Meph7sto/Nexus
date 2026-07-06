@@ -16,7 +16,6 @@ where docker >nul 2>nul
 if errorlevel 1 (
   echo Docker was not found. Log windows were closed if they existed.
   echo.
-  pause
   exit /b 0
 )
 
@@ -24,7 +23,6 @@ docker info >nul 2>nul
 if errorlevel 1 (
   echo Docker is not running. Log windows were closed if they existed.
   echo.
-  pause
   exit /b 0
 )
 
@@ -38,5 +36,4 @@ if "%EXIT_CODE%"=="0" (
   echo [ERROR] Stop failed with code %EXIT_CODE%.
 )
 echo.
-pause
 exit /b %EXIT_CODE%

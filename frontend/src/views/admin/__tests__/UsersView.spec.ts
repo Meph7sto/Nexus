@@ -6,12 +6,14 @@ import UsersView from '../UsersView.vue'
 
 const {
   listUsers,
+  getUserById,
   getAllGroups,
   getBatchUsersUsage,
   listEnabledDefinitions,
   getBatchUserAttributes
 } = vi.hoisted(() => ({
   listUsers: vi.fn(),
+  getUserById: vi.fn(),
   getAllGroups: vi.fn(),
   getBatchUsersUsage: vi.fn(),
   listEnabledDefinitions: vi.fn(),
@@ -19,6 +21,7 @@ const {
 }))
 
 const authStoreMock = vi.hoisted(() => ({
+  isSuperAdmin: false,
   canAdmin: vi.fn(() => true)
 }))
 
@@ -26,6 +29,7 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     users: {
       list: listUsers,
+      getById: getUserById,
       toggleStatus: vi.fn(),
       delete: vi.fn()
     },
@@ -96,6 +100,7 @@ const DataTableStub = {
         <slot :name="'header-' + col.key" :column="col" />
       </template>
       <div v-for="row in data" :key="row.id">
+        <slot name="cell-actions" :row="row" />
         <slot name="cell-last_used_at" :value="row.last_used_at" :row="row" />
       </div>
     </div>
@@ -108,6 +113,7 @@ describe('admin UsersView', () => {
     localStorage.clear()
 
     listUsers.mockReset()
+    getUserById.mockReset()
     getAllGroups.mockReset()
     getBatchUsersUsage.mockReset()
     listEnabledDefinitions.mockReset()
@@ -120,11 +126,13 @@ describe('admin UsersView', () => {
       page_size: 20,
       pages: 1
     })
+    getUserById.mockImplementation((id: number) => Promise.resolve(createAdminUser({ id })))
     getAllGroups.mockResolvedValue([])
     getBatchUsersUsage.mockResolvedValue({ stats: {} })
     listEnabledDefinitions.mockResolvedValue([])
     getBatchUserAttributes.mockResolvedValue({ values: {} })
     authStoreMock.canAdmin.mockReset()
+    authStoreMock.isSuperAdmin = false
     authStoreMock.canAdmin.mockReturnValue(true)
   })
 
@@ -322,5 +330,68 @@ describe('admin UsersView', () => {
     expect(wrapper.find('[data-test="delete-user"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="export-users"]').exists()).toBe(false)
     expect(wrapper.find('[data-test="batch-concurrency"]').exists()).toBe(false)
+  })
+
+  it('loads full admin permissions before opening the edit modal for super administrators', async () => {
+    authStoreMock.isSuperAdmin = true
+    const listedAdmin = createAdminUser({
+      id: 9,
+      email: 'limited-admin@example.com',
+      role: 'admin',
+      admin_permissions: undefined
+    })
+    const detailedAdmin = createAdminUser({
+      id: 9,
+      email: 'limited-admin@example.com',
+      role: 'admin',
+      admin_permissions: [{ resource: 'users', actions: ['view', 'update'] }]
+    })
+    listUsers.mockResolvedValue({
+      items: [listedAdmin],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+    getUserById.mockResolvedValue(detailedAdmin)
+
+    const wrapper = mount(UsersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserPlatformQuotaCell: true,
+          UserCreateModal: true,
+          UserEditModal: {
+            props: ['show', 'user'],
+            template: '<div data-test="edit-modal">{{ user?.admin_permissions?.[0]?.actions?.join(",") }}</div>'
+          },
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-test="edit-user"]').trigger('click')
+    await flushPromises()
+
+    expect(getUserById).toHaveBeenCalledWith(9)
+    expect(wrapper.get('[data-test="edit-modal"]').text()).toBe('view,update')
   })
 })

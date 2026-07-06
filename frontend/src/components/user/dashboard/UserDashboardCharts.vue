@@ -22,15 +22,18 @@
  <!-- Charts Grid -->
  <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
  <!-- Model Distribution Chart -->
- <div class="card relative overflow-hidden p-4">
+ <div class="card p-4">
+ <h3 class="mb-4 text-sm font-semibold text-gray-900 ">{{ t('dashboard.modelDistribution') }}</h3>
+ <div v-if="loading && !hasModelStats" class="flex h-48 items-center justify-center">
+ <LoadingSpinner size="md" />
+ </div>
+ <div v-else-if="hasModelStats && modelData" class="relative">
  <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/50 ">
  <LoadingSpinner size="md" />
  </div>
- <h3 class="mb-4 text-sm font-semibold text-gray-900 ">{{ t('dashboard.modelDistribution') }}</h3>
  <div class="flex items-center gap-6">
  <div class="h-48 w-48">
- <Doughnut v-if="modelData" :data="modelData" :options="doughnutOptions" />
- <div v-else class="flex h-full items-center justify-center text-sm text-gray-500 ">{{ t('dashboard.noDataAvailable') }}</div>
+ <Doughnut :data="modelData" :options="doughnutOptions" />
  </div>
  <div class="max-h-48 flex-1 overflow-y-auto">
  <table class="w-full text-xs">
@@ -54,6 +57,10 @@
  </tbody>
  </table>
  </div>
+ </div>
+ </div>
+ <div v-else class="flex h-48 items-center justify-center text-sm text-gray-500 ">
+ {{ t('dashboard.noDataAvailable') }}
  </div>
  </div>
 
@@ -80,7 +87,9 @@ const props = defineProps<{ loading: boolean, startDate: string, endDate: string
 defineEmits(['update:startDate', 'update:endDate', 'update:granularity', 'dateRangeChange', 'granularityChange', 'refresh'])
 const { t } = useI18n()
 
-const modelData = computed(() => !props.models?.length ? null : {
+const hasModelStats = computed(() => props.models?.length > 0)
+
+const modelData = computed(() => !hasModelStats.value ? null : {
  labels: props.models.map((m: ModelStat) => m.model),
  datasets: [{
  data: props.models.map((m: ModelStat) => m.total_tokens),

@@ -101,4 +101,30 @@ describe('UserEditModal administrator permissions', () => {
       ]),
     }))
   })
+
+  it('selects every assignable permission when select all is checked', async () => {
+    authStoreMock.isSuperAdmin = true
+    const wrapper = mountModal()
+
+    await wrapper.find('[data-test="perm-select-all"]').setValue(true)
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(adminAPI.users.update).toHaveBeenCalledWith(7, expect.objectContaining({
+      role: 'admin',
+      admin_permissions: expect.arrayContaining([
+        expect.objectContaining({
+          resource: 'dashboard',
+          actions: expect.arrayContaining(['view', 'execute']),
+        }),
+        expect.objectContaining({
+          resource: 'users',
+          actions: expect.arrayContaining(['view', 'create', 'update', 'delete', 'export', 'execute']),
+        }),
+        expect.objectContaining({
+          resource: 'usage',
+          actions: expect.arrayContaining(['view', 'delete', 'export', 'execute']),
+        }),
+      ]),
+    }))
+  })
 })

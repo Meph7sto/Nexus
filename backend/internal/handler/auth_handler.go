@@ -103,11 +103,21 @@ func (h *AuthHandler) respondWithTokenPair(c *gin.Context, user *service.User) {
 		return
 	}
 
-	tokenPair, err := h.authService.GenerateTokenPair(c.Request.Context(), user, "")
+	responseUser := user
+	if h.userService != nil && user.IsAdminLike() {
+		profileUser, err := h.userService.GetProfile(c.Request.Context(), user.ID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		responseUser = profileUser
+	}
+
+	tokenPair, err := h.authService.GenerateTokenPair(c.Request.Context(), responseUser, "")
 	if err != nil {
 		slog.Error("failed to generate token pair", "error", err, "user_id", user.ID)
 		// 回退到只返回Access Token
-		token, tokenErr := h.authService.GenerateToken(user)
+		token, tokenErr := h.authService.GenerateToken(responseUser)
 		if tokenErr != nil {
 			response.InternalError(c, "Failed to generate token")
 			return
@@ -115,7 +125,7 @@ func (h *AuthHandler) respondWithTokenPair(c *gin.Context, user *service.User) {
 		response.Success(c, AuthResponse{
 			AccessToken: token,
 			TokenType:   "Bearer",
-			User:        dto.UserFromService(user),
+			User:        dto.UserFromService(responseUser),
 		})
 		return
 	}
@@ -124,7 +134,7 @@ func (h *AuthHandler) respondWithTokenPair(c *gin.Context, user *service.User) {
 		RefreshToken: tokenPair.RefreshToken,
 		ExpiresIn:    tokenPair.ExpiresIn,
 		TokenType:    "Bearer",
-		User:         dto.UserFromService(user),
+		User:         dto.UserFromService(responseUser),
 	})
 }
 
@@ -409,7 +419,7 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userService.GetByID(c.Request.Context(), subject.UserID)
+	user, err := h.userService.GetProfile(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

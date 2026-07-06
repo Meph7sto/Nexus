@@ -804,6 +804,16 @@ router.beforeEach(async (to, _from, next) => {
  return
  }
 
+ // Admin users have a dedicated dashboard. Normalize legacy/user dashboard entry
+ // points so reloads and saved links do not flash the user dashboard first.
+ if (to.path === '/dashboard' && authStore.isAdminLike) {
+ const adminDashboardPath = firstAllowedAdminPath(routes, authStore.canAdmin)
+ if (adminDashboardPath && adminDashboardPath !== to.path) {
+ next(adminDashboardPath)
+ return
+ }
+ }
+
  // Check admin requirement
  if (requiresAdmin && !authStore.isAdminLike) {
  // User is authenticated but not admin, redirect to user dashboard
