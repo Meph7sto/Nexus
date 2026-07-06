@@ -1,0 +1,6 @@
+services:
+  nexus:
+    image: nexus-local:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
