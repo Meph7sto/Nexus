@@ -10,7 +10,7 @@ export function useAdminPermissionGate(resource: AdminPermissionResource) {
     authStore = null
   }
   const can = (action: 'create' | 'update' | 'delete' | 'export' | 'execute') => (
-    authStore ? authStore.canAdmin(resource, action) : true
+    typeof authStore?.canAdmin === 'function' ? authStore.canAdmin(resource, action) : true
   )
   const canCreate = computed(() => can('create'))
   const canUpdate = computed(() => can('update'))
