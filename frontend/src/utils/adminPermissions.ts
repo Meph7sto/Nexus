@@ -17,6 +17,7 @@ export function adminResourceForPath(path: string): AdminPermissionResource | nu
   if (path.startsWith('/admin/channels/monitor')) return 'channel_monitor'
   if (path.startsWith('/admin/channels')) return 'channels'
   if (path.startsWith('/admin/subscriptions')) return 'subscriptions'
+  if (path.startsWith('/admin/openai-quota-summary')) return 'accounts'
   if (path.startsWith('/admin/accounts')) return 'accounts'
   if (path.startsWith('/admin/announcements')) return 'announcements'
   if (path.startsWith('/admin/proxies')) return 'proxies'

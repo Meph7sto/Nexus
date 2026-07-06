@@ -3196,7 +3196,29 @@ export default {
  description: '按分区和账号类型查看 OpenAI/Codex 额度状态',
  current: '当前',
  hoursLater: '小时后',
- daysLater: '天后'
+ daysLater: '天后',
+ allGroups: '全部分组',
+ ungrouped: '未分配分组',
+ allTypes: '全部类型',
+ typeOAuth: 'OAuth',
+ typeSetupToken: 'Setup Token',
+ typeApiKey: 'API Key',
+ projection: '投影时间',
+ generated: '生成时间',
+ rows: '{count} 行',
+ table: {
+ type: '类型',
+ included: '纳入',
+ errors: '异常',
+ inactive: '停用',
+ other: '其他',
+ missing5h: '缺少 5h',
+ missing7d: '缺少 7d',
+ avg5h: '平均 5h',
+ avg7d: '平均 7d',
+ next5hRecovery: '下一次 5h 恢复',
+ next7dRecovery: '下一次 7d 恢复'
+ }
  },
 
  // Accounts Management

@@ -509,7 +509,9 @@ const routes: RouteRecordRaw[] = [
  requiresAdmin: true,
  title: 'OpenAI Quota Summary',
  titleKey: 'admin.openAIQuotaSummary.title',
- descriptionKey: 'admin.openAIQuotaSummary.description'
+ descriptionKey: 'admin.openAIQuotaSummary.description',
+ adminResource: 'accounts',
+ adminAction: 'view'
  }
  },
  {

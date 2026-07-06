@@ -2,6 +2,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import OpenAIQuotaSummaryView from '../OpenAIQuotaSummaryView.vue'
 import { accountsAPI } from '@/api/admin/accounts'
+import { groupsAPI } from '@/api/admin/groups'
 
 vi.mock('vue-i18n', () => ({
  useI18n: () => ({
@@ -12,6 +13,12 @@ vi.mock('vue-i18n', () => ({
 vi.mock('@/api/admin/accounts', () => ({
  accountsAPI: {
   getOpenAIQuotaSummary: vi.fn()
+ }
+}))
+
+vi.mock('@/api/admin/groups', () => ({
+ groupsAPI: {
+  getAll: vi.fn()
  }
 }))
 
@@ -59,10 +66,48 @@ const response = {
  ]
 }
 
+const groupsResponse = [
+ {
+  id: 12,
+  name: 'OpenAI Main',
+  description: null,
+  platform: 'openai',
+  rate_multiplier: 1,
+  is_exclusive: false,
+  status: 'active',
+  subscription_type: 'standard',
+  daily_limit_usd: null,
+  weekly_limit_usd: null,
+  monthly_limit_usd: null,
+  allow_image_generation: false,
+  image_rate_independent: false,
+  image_rate_multiplier: 1,
+  image_price_1k: null,
+  image_price_2k: null,
+  image_price_4k: null,
+  peak_rate_enabled: false,
+  peak_start: '00:00',
+  peak_end: '00:00',
+  peak_rate_multiplier: 1,
+  claude_code_only: false,
+  fallback_group_id: null,
+  fallback_group_id_on_invalid_request: null,
+  require_oauth_only: false,
+  require_privacy_set: false,
+  created_at: '2026-07-06T00:00:00Z',
+  updated_at: '2026-07-06T00:00:00Z',
+  model_routing: null,
+  model_routing_enabled: false,
+  mcp_xml_inject: false
+ }
+]
+
 describe('OpenAIQuotaSummaryView', () => {
  beforeEach(() => {
   vi.mocked(accountsAPI.getOpenAIQuotaSummary).mockReset()
   vi.mocked(accountsAPI.getOpenAIQuotaSummary).mockResolvedValue(response)
+  vi.mocked(groupsAPI.getAll).mockReset()
+  vi.mocked(groupsAPI.getAll).mockResolvedValue(groupsResponse)
  })
 
  it('loads and renders grouped summary rows', async () => {
@@ -81,17 +126,37 @@ describe('OpenAIQuotaSummaryView', () => {
  it('sends a future projection when hours mode is applied', async () => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-07-06T14:00:00Z'))
+  try {
+   const wrapper = mount(OpenAIQuotaSummaryView)
+   await flushPromises()
+
+   await wrapper.get('[data-test="projection-mode-hours"]').trigger('click')
+   await wrapper.get('[data-test="projection-amount"]').setValue('2')
+   await wrapper.get('[data-test="refresh"]').trigger('click')
+   await flushPromises()
+
+   expect(accountsAPI.getOpenAIQuotaSummary).toHaveBeenLastCalledWith({
+    projection_at: '2026-07-06T16:00:00.000Z'
+   })
+  } finally {
+   vi.useRealTimers()
+  }
+ })
+
+ it('sends selected group and account type filters when refreshed', async () => {
   const wrapper = mount(OpenAIQuotaSummaryView)
   await flushPromises()
 
-  await wrapper.get('[data-test="projection-mode-hours"]').trigger('click')
-  await wrapper.get('[data-test="projection-amount"]').setValue('2')
+  expect(groupsAPI.getAll).toHaveBeenCalledWith('openai')
+
+  await wrapper.get('[data-test="group-filter"]').setValue('12')
+  await wrapper.get('[data-test="type-filter"]').setValue('oauth')
   await wrapper.get('[data-test="refresh"]').trigger('click')
   await flushPromises()
 
   expect(accountsAPI.getOpenAIQuotaSummary).toHaveBeenLastCalledWith({
-   projection_at: '2026-07-06T16:00:00.000Z'
+   group: '12',
+   type: 'oauth'
   })
-  vi.useRealTimers()
  })
 })

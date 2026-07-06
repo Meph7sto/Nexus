@@ -3121,7 +3121,29 @@ export default {
  description: 'View OpenAI/Codex quota status by group and account type',
  current: 'Current',
  hoursLater: 'Hours later',
- daysLater: 'Days later'
+ daysLater: 'Days later',
+ allGroups: 'All Groups',
+ ungrouped: 'Ungrouped',
+ allTypes: 'All Types',
+ typeOAuth: 'OAuth',
+ typeSetupToken: 'Setup Token',
+ typeApiKey: 'API Key',
+ projection: 'Projection',
+ generated: 'Generated',
+ rows: '{count} rows',
+ table: {
+ type: 'Type',
+ included: 'Included',
+ errors: 'Errors',
+ inactive: 'Inactive',
+ other: 'Other',
+ missing5h: 'Missing 5h',
+ missing7d: 'Missing 7d',
+ avg5h: 'Avg 5h',
+ avg7d: 'Avg 7d',
+ next5hRecovery: 'Next 5h Recovery',
+ next7dRecovery: 'Next 7d Recovery'
+ }
  },
 
  // Accounts

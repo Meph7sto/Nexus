@@ -11,6 +11,27 @@
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <select
+            v-model="selectedGroup"
+            data-test="group-filter"
+            class="input w-44"
+          >
+            <option value="">{{ t('admin.openAIQuotaSummary.allGroups') }}</option>
+            <option value="ungrouped">{{ t('admin.openAIQuotaSummary.ungrouped') }}</option>
+            <option v-for="group in groups" :key="group.id" :value="String(group.id)">
+              {{ group.name }}
+            </option>
+          </select>
+          <select
+            v-model="selectedType"
+            data-test="type-filter"
+            class="input w-40"
+          >
+            <option value="">{{ t('admin.openAIQuotaSummary.allTypes') }}</option>
+            <option value="oauth">{{ t('admin.openAIQuotaSummary.typeOAuth') }}</option>
+            <option value="setup-token">{{ t('admin.openAIQuotaSummary.typeSetupToken') }}</option>
+            <option value="apikey">{{ t('admin.openAIQuotaSummary.typeApiKey') }}</option>
+          </select>
           <div class="inline-flex overflow-hidden rounded-md border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
             <button
               type="button"
@@ -62,7 +83,7 @@
       <div class="grid gap-3 text-sm sm:grid-cols-2">
         <div class="rounded-md border border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
           <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Projection
+            {{ t('admin.openAIQuotaSummary.projection') }}
           </div>
           <div class="mt-1 text-gray-900 dark:text-gray-100">
             {{ formatDateTime(summary?.projection_at) }}
@@ -70,7 +91,7 @@
         </div>
         <div class="rounded-md border border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
           <div class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-            Generated
+            {{ t('admin.openAIQuotaSummary.generated') }}
           </div>
           <div class="mt-1 text-gray-900 dark:text-gray-100">
             {{ formatDateTime(summary?.generated_at) }}
@@ -98,11 +119,11 @@
               {{ group.group_name }}
             </h2>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ group.ungrouped ? 'Ungrouped' : `#${group.group_id}` }}
+              {{ group.ungrouped ? t('admin.openAIQuotaSummary.ungrouped') : `#${group.group_id}` }}
             </p>
           </div>
           <span class="text-xs text-gray-500 dark:text-gray-400">
-            {{ group.rows.length }} rows
+            {{ t('admin.openAIQuotaSummary.rows', { count: group.rows.length }) }}
           </span>
         </div>
 
@@ -110,17 +131,17 @@
           <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
             <thead class="bg-gray-50 dark:bg-dark-900/60">
               <tr>
-                <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Type</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Included</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Errors</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Inactive</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Other</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Missing 5h</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Missing 7d</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Avg 5h</th>
-                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">Avg 7d</th>
-                <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Next 5h Recovery</th>
-                <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">Next 7d Recovery</th>
+                <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.type') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.included') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.errors') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.inactive') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.other') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.missing5h') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.missing7d') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.avg5h') }}</th>
+                <th class="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.avg7d') }}</th>
+                <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.next5hRecovery') }}</th>
+                <th class="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-300">{{ t('admin.openAIQuotaSummary.table.next7dRecovery') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
@@ -158,16 +179,22 @@ import { defineComponent, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { accountsAPI } from '@/api/admin/accounts'
+import { groupsAPI } from '@/api/admin/groups'
 import type { OpenAIQuotaRecovery, OpenAIQuotaSummaryParams, OpenAIQuotaSummaryResponse } from '@/api/admin/accounts'
+import type { AccountType, AdminGroup } from '@/types'
 import { useAppStore } from '@/stores/app'
 
 type ProjectionMode = 'current' | 'hours' | 'days'
+type OpenAIQuotaSummaryTypeFilter = '' | Extract<AccountType, 'oauth' | 'setup-token' | 'apikey'>
 
 const { t } = useI18n()
 const appStore = useAppStore()
 
 const projectionMode = ref<ProjectionMode>('current')
 const projectionAmount = ref(1)
+const selectedGroup = ref('')
+const selectedType = ref<OpenAIQuotaSummaryTypeFilter>('')
+const groups = ref<AdminGroup[]>([])
 const summary = ref<OpenAIQuotaSummaryResponse | null>(null)
 const loading = ref(false)
 
@@ -200,10 +227,25 @@ function projectionParams(): OpenAIQuotaSummaryParams {
  return { projection_at: date.toISOString() }
 }
 
+function summaryParams(): OpenAIQuotaSummaryParams {
+ const params = projectionParams()
+ if (selectedGroup.value) params.group = selectedGroup.value
+ if (selectedType.value) params.type = selectedType.value
+ return params
+}
+
+async function loadGroups(): Promise<void> {
+ try {
+  groups.value = await groupsAPI.getAll('openai')
+ } catch (error) {
+  appStore.showError(error instanceof Error ? error.message : String(error))
+ }
+}
+
 async function loadSummary(): Promise<void> {
  loading.value = true
  try {
-  summary.value = await accountsAPI.getOpenAIQuotaSummary(projectionParams())
+  summary.value = await accountsAPI.getOpenAIQuotaSummary(summaryParams())
  } catch (error) {
   appStore.showError(error instanceof Error ? error.message : String(error))
  } finally {
@@ -237,5 +279,8 @@ const RecoveryCell = defineComponent({
  },
 })
 
-onMounted(loadSummary)
+onMounted(() => {
+ void loadGroups()
+ void loadSummary()
+})
 </script>
