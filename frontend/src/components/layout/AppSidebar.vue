@@ -179,6 +179,8 @@ import { useAdminSettingsStore, useAppStore, useAuthStore } from '@/stores'
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
+import { adminResourceForPath } from '@/utils/adminPermissions'
+import type { AdminPermissionResource } from '@/types'
 
 interface NavItem {
  path: string
@@ -199,6 +201,7 @@ interface NavItem {
  * 开关切换时菜单自动更新。
  */
  featureFlag?: () => boolean | undefined
+ adminResource?: AdminPermissionResource
 }
 
 // applyFeatureFlags 递归过滤掉 featureFlag() === false 的节点（含子节点）。
@@ -216,6 +219,21 @@ function applyFeatureFlags(items: NavItem[]): NavItem[] {
  return out
 }
 
+function filterAdminPermissions(items: NavItem[]): NavItem[] {
+ const out: NavItem[] = []
+ for (const item of items) {
+ const children = item.children ? filterAdminPermissions(item.children) : undefined
+ const resource = item.adminResource ?? adminResourceForPath(item.path)
+ const allowed = !resource || authStore.canAdmin(resource, 'view')
+ if (children?.length) {
+ out.push({ ...item, children })
+ } else if (allowed) {
+ out.push(item)
+ }
+ }
+ return out
+}
+
 const { t } = useI18n()
 
 const route = useRoute()
@@ -226,7 +244,7 @@ const adminSettingsStore = useAdminSettingsStore()
 
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
-const isAdmin = computed(() => authStore.isAdmin)
+const isAdmin = computed(() => authStore.isAdminLike)
 const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
 
 // Track which parent nav groups are expanded
@@ -729,20 +747,24 @@ const adminNavItems = computed((): NavItem[] => {
  { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }
  ]
 
- const visible = applyFeatureFlags(baseItems)
+ const visible = filterAdminPermissions(applyFeatureFlags(baseItems))
 
  // 简单模式下，在系统设置前插入 API密钥
  if (authStore.isSimpleMode) {
  const filtered = visible.filter(item => !item.hideInSimpleMode)
  filtered.push({ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon })
+ if (authStore.canAdmin('settings', 'view')) {
  filtered.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
+ }
  for (const cm of customMenuItemsForAdmin.value) {
  filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
  }
  return filtered
  }
 
+ if (authStore.canAdmin('settings', 'view')) {
  visible.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
+ }
  for (const cm of customMenuItemsForAdmin.value) {
  visible.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
  }

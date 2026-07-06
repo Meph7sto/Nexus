@@ -51,10 +51,12 @@ vi.mock('@/api/auth', () => ({
 interface MockAuthState {
   isAuthenticated: boolean
   isAdmin: boolean
+  isAdminLike?: boolean
   isSimpleMode: boolean
   backendModeEnabled: boolean
   hasPendingAuthSession: boolean
   setupNeedsSetup?: boolean
+  adminPermissions?: Array<{ resource: string; actions: string[] }>
 }
 
 /**
@@ -67,9 +69,14 @@ function simulateGuard(
 ): string | null {
   const requiresAuth = toMeta.requiresAuth !== false
   const requiresAdmin = toMeta.requiresAdmin === true
+  const isAdminLike = authState.isAdminLike ?? authState.isAdmin
+  const canAdmin = (resource: string, action: string) => {
+    if (authState.isAdmin && !authState.adminPermissions) return true
+    return authState.adminPermissions?.some((perm) => perm.resource === resource && perm.actions.includes(action)) ?? false
+  }
 
   if (toPath === '/setup' && authState.setupNeedsSetup === false) {
-    return resolveCompletedSetupRedirectPath(authState.isAuthenticated, authState.isAdmin)
+    return resolveCompletedSetupRedirectPath(authState.isAuthenticated, isAdminLike)
   }
 
   // 不需要认证的路由
@@ -78,10 +85,10 @@ function simulateGuard(
       authState.isAuthenticated &&
       (toPath === '/login' || toPath === '/register')
     ) {
-      if (authState.backendModeEnabled && !authState.isAdmin) {
+      if (authState.backendModeEnabled && !isAdminLike) {
         return null
       }
-      return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
+      return isAdminLike ? '/admin/dashboard' : '/dashboard'
     }
     if (authState.backendModeEnabled && !authState.isAuthenticated) {
       const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
@@ -110,7 +117,11 @@ function simulateGuard(
   }
 
   // 需要管理员但不是管理员
-  if (requiresAdmin && !authState.isAdmin) {
+  if (requiresAdmin && !isAdminLike) {
+    return '/dashboard'
+  }
+
+  if (requiresAdmin && toMeta.adminResource && !canAdmin(toMeta.adminResource, toMeta.adminAction ?? 'view')) {
     return '/dashboard'
   }
 
@@ -124,13 +135,13 @@ function simulateGuard(
       '/redeem',
     ]
     if (restrictedPaths.some((path) => toPath.startsWith(path))) {
-      return authState.isAdmin ? '/admin/dashboard' : '/dashboard'
+      return isAdminLike ? '/admin/dashboard' : '/dashboard'
     }
   }
 
   // Backend mode: admin gets full access, non-admin blocked
   if (authState.backendModeEnabled) {
-    if (authState.isAuthenticated && authState.isAdmin) {
+    if (authState.isAuthenticated && isAdminLike) {
       return null
     }
     const allowed = ['/login', '/key-usage', '/setup', '/payment/result']
@@ -252,6 +263,36 @@ describe('路由守卫逻辑', () => {
     it('访问用户页面允许通过', () => {
       const redirect = simulateGuard('/dashboard', {}, authState)
       expect(redirect).toBeNull()
+    })
+  })
+
+  describe('有限管理员权限', () => {
+    it('允许访问已授权的管理页面', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: true,
+        isAdminLike: true,
+        isSimpleMode: false,
+        backendModeEnabled: false,
+        hasPendingAuthSession: false,
+        adminPermissions: [{ resource: 'users', actions: ['view'] }],
+      }
+      const redirect = simulateGuard('/admin/users', { requiresAdmin: true, adminResource: 'users', adminAction: 'view' }, authState)
+      expect(redirect).toBeNull()
+    })
+
+    it('拒绝访问未授权的管理页面', () => {
+      const authState: MockAuthState = {
+        isAuthenticated: true,
+        isAdmin: true,
+        isAdminLike: true,
+        isSimpleMode: false,
+        backendModeEnabled: false,
+        hasPendingAuthSession: false,
+        adminPermissions: [{ resource: 'users', actions: ['view'] }],
+      }
+      const redirect = simulateGuard('/admin/settings', { requiresAdmin: true, adminResource: 'settings', adminAction: 'view' }, authState)
+      expect(redirect).toBe('/dashboard')
     })
   })
 

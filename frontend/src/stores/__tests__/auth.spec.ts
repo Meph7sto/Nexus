@@ -43,6 +43,14 @@ const fakeAdminUser = {
   role: 'admin' as const,
 }
 
+const fakeSuperAdminUser = {
+  ...fakeUser,
+  id: 3,
+  username: 'superadmin',
+  email: 'superadmin@example.com',
+  role: 'super_admin' as const,
+}
+
 const fakeAuthResponse = {
   access_token: 'test-token-123',
   refresh_token: 'refresh-token-456',
@@ -339,6 +347,39 @@ describe('useAuthStore', () => {
     it('未登录时返回 false', () => {
       const store = useAuthStore()
       expect(store.isAdmin).toBe(false)
+    })
+  })
+
+  describe('administrator permissions', () => {
+    it('treats super administrators as admin-like without limited admin role', async () => {
+      mockLogin.mockResolvedValue({ ...fakeAuthResponse, user: fakeSuperAdminUser })
+      const store = useAuthStore()
+
+      await store.login({ email: 'superadmin@example.com', password: '123456' })
+
+      expect(store.isAdmin).toBe(false)
+      expect(store.isSuperAdmin).toBe(true)
+      expect(store.isAdminLike).toBe(true)
+      expect(store.canAdmin('settings', 'delete')).toBe(true)
+    })
+
+    it('allows limited administrators only for granted actions', async () => {
+      mockLogin.mockResolvedValue({
+        ...fakeAuthResponse,
+        user: {
+          ...fakeAdminUser,
+          admin_permissions: [{ resource: 'users' as const, actions: ['view' as const, 'update' as const] }],
+        },
+      })
+      const store = useAuthStore()
+
+      await store.login({ email: 'admin@example.com', password: '123456' })
+
+      expect(store.isAdminLike).toBe(true)
+      expect(store.canAdmin('users', 'view')).toBe(true)
+      expect(store.canAdmin('users', 'update')).toBe(true)
+      expect(store.canAdmin('users', 'delete')).toBe(false)
+      expect(store.canAdmin('settings', 'view')).toBe(false)
     })
   })
 

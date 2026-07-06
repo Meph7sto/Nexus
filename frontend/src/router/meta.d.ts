@@ -4,6 +4,7 @@
  */
 
 import 'vue-router'
+import type { AdminPermissionAction, AdminPermissionResource } from '@/types'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -18,6 +19,8 @@ declare module 'vue-router' {
      * @default false
      */
     requiresAdmin?: boolean
+    adminResource?: AdminPermissionResource
+    adminAction?: AdminPermissionAction
 
     /**
      * Page title for this route
