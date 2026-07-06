@@ -216,6 +216,7 @@ type ChangePasswordRequest struct {
 // UserService 用户服务
 type UserService struct {
 	userRepo             UserRepository
+	adminPermissionRepo  AdminPermissionRepository
 	settingRepo          SettingRepository
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	billingCache         BillingCache
@@ -224,9 +225,14 @@ type UserService struct {
 }
 
 // NewUserService 创建用户服务实例
-func NewUserService(userRepo UserRepository, settingRepo SettingRepository, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCache BillingCache) *UserService {
+func NewUserService(userRepo UserRepository, settingRepo SettingRepository, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCache BillingCache, adminPermissionRepo ...AdminPermissionRepository) *UserService {
+	var permissionRepo AdminPermissionRepository
+	if len(adminPermissionRepo) > 0 {
+		permissionRepo = adminPermissionRepo[0]
+	}
 	return &UserService{
 		userRepo:             userRepo,
+		adminPermissionRepo:  permissionRepo,
 		settingRepo:          settingRepo,
 		authCacheInvalidator: authCacheInvalidator,
 		billingCache:         billingCache,
@@ -242,6 +248,13 @@ func (s *UserService) GetFirstAdmin(ctx context.Context) (*User, error) {
 	return admin, nil
 }
 
+func (s *UserService) GetAdminPermissions(ctx context.Context, userID int64) ([]AdminPermission, error) {
+	if s.adminPermissionRepo == nil {
+		return nil, nil
+	}
+	return s.adminPermissionRepo.ListByUserID(ctx, userID)
+}
+
 // GetProfile 获取用户资料
 func (s *UserService) GetProfile(ctx context.Context, userID int64) (*User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
@@ -249,6 +262,13 @@ func (s *UserService) GetProfile(ctx context.Context, userID int64) (*User, erro
 		return nil, fmt.Errorf("get user: %w", err)
 	}
 	normalizeLoadedUserTokenVersion(user)
+	if user.IsAdminLike() && s.adminPermissionRepo != nil {
+		perms, err := s.adminPermissionRepo.ListByUserID(ctx, user.ID)
+		if err != nil {
+			return nil, err
+		}
+		user.AdminPermissions = perms
+	}
 	if err := s.hydrateUserAvatar(ctx, user); err != nil {
 		return nil, fmt.Errorf("get user avatar: %w", err)
 	}

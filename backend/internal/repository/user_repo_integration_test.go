@@ -483,12 +483,17 @@ func (s *UserRepoSuite) TestRemoveGroupFromAllowedGroups_NoMatch() {
 func (s *UserRepoSuite) TestGetFirstAdmin() {
 	admin1 := s.mustCreateUser(&service.User{
 		Email:  "admin1@example.com",
+		Role:   service.RoleSuperAdmin,
+		Status: service.StatusActive,
+	})
+	s.mustCreateUser(&service.User{
+		Email:  "limited@example.com",
 		Role:   service.RoleAdmin,
 		Status: service.StatusActive,
 	})
 	s.mustCreateUser(&service.User{
 		Email:  "admin2@example.com",
-		Role:   service.RoleAdmin,
+		Role:   service.RoleSuperAdmin,
 		Status: service.StatusActive,
 	})
 
@@ -503,6 +508,11 @@ func (s *UserRepoSuite) TestGetFirstAdmin_NoAdmin() {
 		Role:   service.RoleUser,
 		Status: service.StatusActive,
 	})
+	s.mustCreateUser(&service.User{
+		Email:  "limited@example.com",
+		Role:   service.RoleAdmin,
+		Status: service.StatusActive,
+	})
 
 	_, err := s.repo.GetFirstAdmin(s.ctx)
 	s.Require().Error(err, "expected error when no admin exists")
@@ -511,12 +521,17 @@ func (s *UserRepoSuite) TestGetFirstAdmin_NoAdmin() {
 func (s *UserRepoSuite) TestGetFirstAdmin_DisabledAdminIgnored() {
 	s.mustCreateUser(&service.User{
 		Email:  "disabled@example.com",
-		Role:   service.RoleAdmin,
+		Role:   service.RoleSuperAdmin,
 		Status: service.StatusDisabled,
+	})
+	s.mustCreateUser(&service.User{
+		Email:  "limited@example.com",
+		Role:   service.RoleAdmin,
+		Status: service.StatusActive,
 	})
 	activeAdmin := s.mustCreateUser(&service.User{
 		Email:  "active@example.com",
-		Role:   service.RoleAdmin,
+		Role:   service.RoleSuperAdmin,
 		Status: service.StatusActive,
 	})
 
