@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Add an admin-only interaction detail view to `admin/usage` so administrators can inspect the concrete content behind a usage row: the original input or prompt, the model output, request parameters, routing and billing context, and optional raw request/response JSON.
+Add an admin-only interaction detail page that is directly reachable from each row in `admin/usage`, so administrators can inspect the concrete content behind that exact usage row: the original input or prompt, the model output, request parameters, routing and billing context, and optional raw request/response JSON.
 
 The feature is intended for operational audit and support. It must be explicit, controlled, and off by default because successful request content can contain sensitive user data.
 
@@ -16,7 +16,7 @@ In scope:
 - Full input/prompt and full output preservation without summarization or truncation.
 - Optional raw request/response JSON storage and viewing.
 - Credential redaction for secrets such as authorization headers, cookies, API keys, and upstream tokens.
-- A usage row detail action and modal in `admin/usage`.
+- A usage row detail action in `admin/usage` that opens the linked interaction detail page for that exact row.
 - Retention configuration with default `7` days and arbitrary integer-day values.
 - Automatic cleanup of stored interaction details according to retention.
 
@@ -24,7 +24,7 @@ Out of scope:
 
 - Backfilling historical interaction details for rows created before the feature is enabled.
 - Reconstructing missing details from token counts or summaries.
-- Showing raw JSON by default in the usage list or first modal view.
+- Showing raw JSON by default in the usage list or first detail view.
 - Storing unredacted credentials.
 - Changing billing, token counting, or existing usage aggregation semantics.
 
@@ -177,6 +177,21 @@ Possible missing reasons:
 
 Raw fields may be omitted unless the caller asks for raw explicitly with `include_raw=true`. The UI should first load the readable details, then request raw only when the administrator opens the raw tab. This keeps accidental exposure and payload size lower.
 
+## Navigation
+
+Add a dedicated admin route for interaction details, for example:
+
+`/admin/usage/:id/interaction`
+
+Navigation invariant:
+
+- Every row rendered in `admin/usage` must include a visible details action.
+- Clicking the action navigates to the interaction detail page for that exact `usage_logs.id`.
+- The detail page loads `GET /api/v1/admin/usage/:id/interaction`.
+- The page must include a route back to `admin/usage`, preserving the previous filter/page state when practical.
+- If the interaction record is missing because the row is historical, recording was disabled, or retention cleanup removed it, the page still opens and shows the correct empty state for that usage row.
+- If an enabled-period row is unexpectedly missing its interaction record, the page still opens and shows the unexpected-missing state.
+
 ## Permissions
 
 The endpoint requires admin authentication and usage-view permission equivalent to the current `admin/usage` page.
@@ -187,9 +202,9 @@ Regular user usage APIs must never include interaction details or raw JSON.
 
 ## Frontend Design
 
-Update `admin/usage` with a compact details action per row.
+Update `admin/usage` with a compact details action per row. The action navigates to the dedicated interaction detail page rather than rendering the full detail in the table.
 
-The interaction modal uses tabs:
+The interaction detail page uses tabs:
 
 - Input
 - Output
@@ -238,8 +253,9 @@ Backend tests:
 
 Frontend tests:
 
-- Usage table exposes a details action.
-- Detail modal loads and renders input, output, parameters, and routing/billing tabs.
+- Usage table exposes a details action for every row.
+- Clicking a row's details action navigates to `/admin/usage/:id/interaction` for that row's usage log ID.
+- Interaction detail page loads and renders input, output, parameters, and routing/billing tabs.
 - Raw tab loads raw JSON only after being selected.
 - Missing-detail state is shown for `exists: false`.
 - Raw copy actions use the existing clipboard/toast pattern.
