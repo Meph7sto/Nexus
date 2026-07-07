@@ -72,6 +72,16 @@ func TestUsageHandlerGetInteractionReturnsNotRecordedWhenMissing(t *testing.T) {
 	require.Equal(t, "not_recorded", resp.Data.Reason)
 }
 
+func TestUsageHandlerGetInteractionReturnsUnavailableWhenServiceMissing(t *testing.T) {
+	router := setupUsageInteractionRouter(nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/usage/7/interaction", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
+}
+
 func setupUsageInteractionRouter(interactionService *service.UsageInteractionService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	handler := NewUsageHandler(nil, nil, nil, nil, interactionService)

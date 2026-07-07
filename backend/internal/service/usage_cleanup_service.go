@@ -24,10 +24,11 @@ const (
 
 // UsageCleanupService 负责创建与执行使用记录清理任务
 type UsageCleanupService struct {
-	repo        UsageCleanupRepository
-	timingWheel *TimingWheelService
-	dashboard   *DashboardAggregationService
-	cfg         *config.Config
+	repo               UsageCleanupRepository
+	timingWheel        *TimingWheelService
+	dashboard          *DashboardAggregationService
+	cfg                *config.Config
+	interactionService *UsageInteractionService
 
 	running   int32
 	startOnce sync.Once
@@ -47,6 +48,13 @@ func NewUsageCleanupService(repo UsageCleanupRepository, timingWheel *TimingWhee
 		workerCtx:    workerCtx,
 		workerCancel: workerCancel,
 	}
+}
+
+func (s *UsageCleanupService) SetUsageInteractionService(interactionService *UsageInteractionService) {
+	if s == nil {
+		return
+	}
+	s.interactionService = interactionService
 }
 
 func describeUsageCleanupFilters(filters UsageCleanupFilters) string {
@@ -172,6 +180,8 @@ func (s *UsageCleanupService) runOnce() {
 	ctx, cancel := context.WithTimeout(parent, svc.taskTimeout())
 	defer cancel()
 
+	svc.cleanupExpiredInteractions(ctx, time.Now())
+
 	task, err := svc.repo.ClaimNextPendingTask(ctx, int64(svc.taskTimeout().Seconds()))
 	if err != nil {
 		logger.LegacyPrintf("service.usage_cleanup", "[UsageCleanup] claim pending task failed: %v", err)
@@ -184,6 +194,20 @@ func (s *UsageCleanupService) runOnce() {
 
 	logger.LegacyPrintf("service.usage_cleanup", "[UsageCleanup] task claimed: task=%d status=%s created_by=%d deleted_rows=%d %s", task.ID, task.Status, task.CreatedBy, task.DeletedRows, describeUsageCleanupFilters(task.Filters))
 	svc.executeTask(ctx, task)
+}
+
+func (s *UsageCleanupService) cleanupExpiredInteractions(ctx context.Context, now time.Time) {
+	if s == nil || s.interactionService == nil {
+		return
+	}
+	deleted, err := s.interactionService.CleanupExpired(ctx, now)
+	if err != nil {
+		logger.LegacyPrintf("service.usage_cleanup", "[UsageCleanup] usage interaction retention cleanup failed: %v", err)
+		return
+	}
+	if deleted > 0 {
+		logger.LegacyPrintf("service.usage_cleanup", "[UsageCleanup] usage interaction retention cleanup deleted_rows=%d", deleted)
+	}
 }
 
 func (s *UsageCleanupService) executeTask(ctx context.Context, task *UsageCleanupTask) {

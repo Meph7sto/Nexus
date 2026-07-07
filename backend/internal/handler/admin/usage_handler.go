@@ -429,6 +429,10 @@ func (h *UsageHandler) SearchAPIKeys(c *gin.Context) {
 }
 
 func (h *UsageHandler) GetInteraction(c *gin.Context) {
+	if h.interactionService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Usage interaction service unavailable")
+		return
+	}
 	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
 	if err != nil || id <= 0 {
 		response.BadRequest(c, "Invalid usage id")

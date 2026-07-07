@@ -20,22 +20,25 @@ func NewUsageInteractionService(repo UsageInteractionRepository, settingRepo Set
 	return &UsageInteractionService{repo: repo, settingRepo: settingRepo}
 }
 
-func (s *UsageInteractionService) Settings(ctx context.Context) UsageInteractionSettings {
+func (s *UsageInteractionService) Settings(ctx context.Context) (UsageInteractionSettings, error) {
 	settings := UsageInteractionSettings{RetentionDays: 7}
 	if s == nil || s.settingRepo == nil {
-		return settings
+		return settings, nil
 	}
-	values, _ := s.settingRepo.GetMultiple(ctx, []string{
+	values, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyUsageInteractionRecordingEnabled,
 		SettingKeyUsageInteractionStoreRawEnabled,
 		SettingKeyUsageInteractionRetentionDays,
 	})
+	if err != nil {
+		return settings, err
+	}
 	settings.RecordingEnabled = values[SettingKeyUsageInteractionRecordingEnabled] == "true"
 	settings.StoreRawEnabled = values[SettingKeyUsageInteractionStoreRawEnabled] == "true"
 	if parsed, err := strconv.Atoi(strings.TrimSpace(values[SettingKeyUsageInteractionRetentionDays])); err == nil && parsed >= 0 {
 		settings.RetentionDays = parsed
 	}
-	return settings
+	return settings, nil
 }
 
 func (s *UsageInteractionService) RecordComplete(ctx context.Context, input UsageInteractionInput) error {
@@ -53,7 +56,10 @@ func (s *UsageInteractionService) record(ctx context.Context, input UsageInterac
 	if s == nil || s.repo == nil {
 		return nil
 	}
-	settings := s.Settings(ctx)
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return err
+	}
 	if !settings.RecordingEnabled {
 		return nil
 	}
@@ -69,9 +75,18 @@ func (s *UsageInteractionService) record(ctx context.Context, input UsageInterac
 	if input.RoutingContext == nil {
 		input.RoutingContext = map[string]any{}
 	}
+	var rawRequestKeys, rawResponseKeys []string
+	var rawRequestChanged, rawResponseChanged bool
 	if !settings.StoreRawEnabled {
 		input.RawRequestJSON = nil
 		input.RawResponseJSON = nil
+	} else {
+		if input.RawRequestJSON != nil {
+			input.RawRequestJSON, rawRequestKeys, rawRequestChanged = RedactUsageInteractionPayload(input.RawRequestJSON)
+		}
+		if input.RawResponseJSON != nil {
+			input.RawResponseJSON, rawResponseKeys, rawResponseChanged = RedactUsageInteractionPayload(input.RawResponseJSON)
+		}
 	}
 	redactedRequest, requestKeys, requestChanged := RedactUsageInteractionPayload(input.RequestContent)
 	redactedResponse, responseKeys, responseChanged := RedactUsageInteractionPayload(input.ResponseContent)
@@ -81,11 +96,11 @@ func (s *UsageInteractionService) record(ctx context.Context, input UsageInterac
 	input.ResponseContent = redactedResponse
 	input.RequestParameters = redactedParams
 	input.RoutingContext = redactedRouting
-	keys := append(append(append(requestKeys, responseKeys...), paramKeys...), routingKeys...)
+	keys := append(append(append(append(append(requestKeys, responseKeys...), paramKeys...), routingKeys...), rawRequestKeys...), rawResponseKeys...)
 	if input.CreatedAt.IsZero() {
 		input.CreatedAt = time.Now()
 	}
-	return s.repo.Create(ctx, input, requestChanged || responseChanged || paramChanged || routingChanged, keys)
+	return s.repo.Create(ctx, input, requestChanged || responseChanged || paramChanged || routingChanged || rawRequestChanged || rawResponseChanged, keys)
 }
 
 func (s *UsageInteractionService) GetByUsageLogID(ctx context.Context, usageLogID int64, includeRaw bool) (*UsageInteraction, error) {
@@ -106,7 +121,10 @@ func (s *UsageInteractionService) CleanupExpired(ctx context.Context, now time.T
 	if s == nil || s.repo == nil {
 		return 0, nil
 	}
-	settings := s.Settings(ctx)
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return 0, err
+	}
 	if settings.RetentionDays == 0 {
 		return 0, nil
 	}
