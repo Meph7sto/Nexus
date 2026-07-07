@@ -600,6 +600,20 @@ const routes: RouteRecordRaw[] = [
  }
  },
  {
+ path: '/admin/usage/:id/interaction',
+ name: 'AdminUsageInteraction',
+ component: () => import('@/views/admin/UsageInteractionDetailView.vue'),
+ meta: {
+ requiresAuth: true,
+ requiresAdmin: true,
+ title: 'Usage Interaction',
+ titleKey: 'admin.usageInteraction.title',
+ descriptionKey: 'admin.usageInteraction.description',
+ adminResource: 'usage',
+ adminAction: 'view'
+ }
+ },
+ {
  path: '/admin/affiliates',
  redirect: '/admin/affiliates/invites'
  },

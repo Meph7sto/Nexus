@@ -946,6 +946,7 @@ export default {
  path: '路径',
  inboundEndpoint: '入站端点',
  upstreamEndpoint: '上游端点',
+ interactionDetails: '交互详情',
  type: '类型',
  tokens: 'Token',
  cost: '费用',
@@ -5024,6 +5025,30 @@ export default {
  }
  },
 
+ usageInteraction: {
+ title: '用量交互详情',
+ description: '查看已捕获的请求、响应、路由与原始载荷详情',
+ redacted: '已脱敏',
+ notFound: '该使用记录没有已捕获的交互详情。',
+ failedToLoad: '加载交互详情失败',
+ failedToLoadRaw: '加载原始交互数据失败',
+ tabs: {
+ input: '输入',
+ output: '输出',
+ parameters: '参数',
+ routing: '路由',
+ raw: '原始'
+ },
+ sections: {
+ input: '输入内容',
+ output: '输出内容',
+ parameters: '请求参数',
+ routing: '路由上下文',
+ rawRequest: '原始请求',
+ rawResponse: '原始响应'
+ }
+ },
+
  // Ops Monitoring
  ops: {
  title: '运维监控',
@@ -6913,6 +6938,14 @@ export default {
  usageRecords: {
  title: '使用记录',
  description: '与终端用户可见的用量及失败请求记录相关的设置。',
+ },
+ usageInteractions: {
+ recordingEnabled: '记录交互明细',
+ recordingEnabledHint: '启用后，每条新的用量记录都会保存完整输入和输出明细。',
+ storeRawEnabled: '保存 Raw JSON',
+ storeRawEnabledHint: 'Raw 请求和响应 JSON 会脱敏保存，并且只在打开 Raw 标签页后展示。',
+ retentionDays: '交互明细保留天数',
+ retentionDaysHint: '可填写任意非负整数。0 表示永久保留。'
  },
  user_error_view: {
  label: '允许用户查看自己的错误请求',

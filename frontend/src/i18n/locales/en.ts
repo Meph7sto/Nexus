@@ -942,6 +942,7 @@ export default {
  path: 'Path',
  inboundEndpoint: 'Inbound Endpoint',
  upstreamEndpoint: 'Upstream Endpoint',
+ interactionDetails: 'Interaction Details',
  type: 'Type',
  tokens: 'Tokens',
  cost: 'Cost',
@@ -4872,6 +4873,30 @@ export default {
  }
  },
 
+ usageInteraction: {
+ title: 'Usage Interaction Detail',
+ description: 'Review captured request, response, routing, and raw payload details',
+ redacted: 'Redacted',
+ notFound: 'No captured interaction exists for this usage record.',
+ failedToLoad: 'Failed to load interaction details',
+ failedToLoadRaw: 'Failed to load raw interaction data',
+ tabs: {
+ input: 'Input',
+ output: 'Output',
+ parameters: 'Parameters',
+ routing: 'Routing',
+ raw: 'Raw'
+ },
+ sections: {
+ input: 'Input Content',
+ output: 'Output Content',
+ parameters: 'Request Parameters',
+ routing: 'Routing Context',
+ rawRequest: 'Raw Request',
+ rawResponse: 'Raw Response'
+ }
+ },
+
  // Ops Monitoring
  ops: {
  title: 'Ops Monitoring',
@@ -6759,6 +6784,14 @@ export default {
  usageRecords: {
  title: 'Usage Records',
  description: 'Settings for usage and failed-request records visible to end users.',
+ },
+ usageInteractions: {
+ recordingEnabled: 'Record interaction details',
+ recordingEnabledHint: 'When enabled, every new usage row stores full input and output details.',
+ storeRawEnabled: 'Store raw JSON',
+ storeRawEnabledHint: 'Raw request and response JSON is stored redacted and shown only after opening the Raw tab.',
+ retentionDays: 'Interaction retention days',
+ retentionDaysHint: 'Any non-negative integer. 0 keeps details indefinitely.'
  },
  user_error_view: {
  label: 'Allow users to view their own error requests',

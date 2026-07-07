@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,10 +22,11 @@ import (
 
 // UsageHandler handles admin usage-related requests
 type UsageHandler struct {
-	usageService   *service.UsageService
-	apiKeyService  *service.APIKeyService
-	adminService   service.AdminService
-	cleanupService *service.UsageCleanupService
+	usageService       *service.UsageService
+	apiKeyService      *service.APIKeyService
+	adminService       service.AdminService
+	cleanupService     *service.UsageCleanupService
+	interactionService *service.UsageInteractionService
 }
 
 // NewUsageHandler creates a new admin usage handler
@@ -33,12 +35,14 @@ func NewUsageHandler(
 	apiKeyService *service.APIKeyService,
 	adminService service.AdminService,
 	cleanupService *service.UsageCleanupService,
+	interactionService *service.UsageInteractionService,
 ) *UsageHandler {
 	return &UsageHandler{
-		usageService:   usageService,
-		apiKeyService:  apiKeyService,
-		adminService:   adminService,
-		cleanupService: cleanupService,
+		usageService:       usageService,
+		apiKeyService:      apiKeyService,
+		adminService:       adminService,
+		cleanupService:     cleanupService,
+		interactionService: interactionService,
 	}
 }
 
@@ -422,6 +426,29 @@ func (h *UsageHandler) SearchAPIKeys(c *gin.Context) {
 	}
 
 	response.Success(c, result)
+}
+
+func (h *UsageHandler) GetInteraction(c *gin.Context) {
+	if h.interactionService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Usage interaction service unavailable")
+		return
+	}
+	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "Invalid usage id")
+		return
+	}
+	includeRaw := parseBoolQueryWithDefault(c.Query("include_raw"), false)
+	detail, err := h.interactionService.GetByUsageLogID(c.Request.Context(), id, includeRaw)
+	if err != nil {
+		if errors.Is(err, service.ErrUsageInteractionNotFound) {
+			response.Success(c, gin.H{"exists": false, "reason": "not_recorded"})
+			return
+		}
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"exists": true, "interaction": detail})
 }
 
 // ListCleanupTasks handles listing usage cleanup tasks

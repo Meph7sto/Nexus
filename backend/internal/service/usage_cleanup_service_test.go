@@ -422,6 +422,27 @@ func TestUsageCleanupServiceRunOnceClaimError(t *testing.T) {
 	require.Empty(t, repo.markFailed)
 }
 
+func TestUsageCleanupServiceRunOnceCleansExpiredUsageInteractionsWhenNoTask(t *testing.T) {
+	repo := &cleanupRepoStub{}
+	interactionRepo := &usageInteractionRepoSpy{deleteResult: 3}
+	interactionSettings := &usageInteractionServiceSettingRepoStub{values: map[string]string{
+		SettingKeyUsageInteractionRecordingEnabled: "false",
+		SettingKeyUsageInteractionStoreRawEnabled:  "false",
+		SettingKeyUsageInteractionRetentionDays:    "7",
+	}}
+	cfg := &config.Config{UsageCleanup: config.UsageCleanupConfig{Enabled: true}}
+	svc := NewUsageCleanupService(repo, nil, nil, cfg)
+	svc.SetUsageInteractionService(NewUsageInteractionService(interactionRepo, interactionSettings))
+
+	before := time.Now().AddDate(0, 0, -7)
+	svc.runOnce()
+	after := time.Now().AddDate(0, 0, -7)
+
+	require.True(t, interactionRepo.deleted)
+	require.False(t, interactionRepo.deleteCutoff.Before(before))
+	require.False(t, interactionRepo.deleteCutoff.After(after))
+}
+
 func TestUsageCleanupServiceRunOnceAlreadyRunning(t *testing.T) {
 	repo := &cleanupRepoStub{}
 	cfg := &config.Config{UsageCleanup: config.UsageCleanupConfig{Enabled: true}}

@@ -270,6 +270,10 @@ type SystemSettings struct {
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
+
+	UsageInteractionRecordingEnabled bool `json:"usage_interaction_recording_enabled"`
+	UsageInteractionStoreRawEnabled  bool `json:"usage_interaction_store_raw_enabled"`
+	UsageInteractionRetentionDays    int  `json:"usage_interaction_retention_days"`
 }
 
 type DefaultSubscriptionSetting struct {

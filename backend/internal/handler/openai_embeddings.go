@@ -221,6 +221,16 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 		upstreamEndpoint := GetUpstreamEndpoint(c, account.Platform)
 		quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 
+		var responseBody []byte
+		upstreamModel := ""
+		if result != nil {
+			responseBody = result.ResponseBody
+			upstreamModel = result.UpstreamModel
+		}
+		capture := service.BuildUsageInteractionCapture(body, responseBody, map[string]any{
+			"stream": false,
+			"model":  reqModel,
+		})
 		h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 				Result:             result,
@@ -234,7 +244,8 @@ func (h *OpenAIGatewayHandler) Embeddings(c *gin.Context) {
 				IPAddress:          clientIP,
 				APIKeyService:      h.apiKeyService,
 				QuotaPlatform:      quotaPlatform,
-				ChannelUsageFields: channelMapping.ToUsageFields(reqModel, result.UpstreamModel),
+				ChannelUsageFields: channelMapping.ToUsageFields(reqModel, upstreamModel),
+				Interaction:        capture,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.embeddings"),

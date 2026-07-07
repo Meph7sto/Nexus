@@ -347,6 +347,14 @@ func recordGrokMediaUsage(
 		OriginalModel:      requestModel,
 		ChannelMappedModel: requestModel,
 	}
+	var responseBody []byte
+	if result != nil {
+		responseBody = result.ResponseBody
+	}
+	capture := service.BuildUsageInteractionCapture(body, responseBody, map[string]any{
+		"stream": false,
+		"model":  requestModel,
+	})
 	h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
 		if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 			Result:             result,
@@ -362,6 +370,7 @@ func recordGrokMediaUsage(
 			APIKeyService:      h.apiKeyService,
 			QuotaPlatform:      quotaPlatform,
 			ChannelUsageFields: channelUsageFields,
+			Interaction:        capture,
 		}); err != nil {
 			logger.L().With(
 				zap.String("component", "handler.openai_gateway.grok_media"),

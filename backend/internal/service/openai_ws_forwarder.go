@@ -2061,6 +2061,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 	var firstTokenMs *int
 	responseID := ""
 	var finalResponse []byte
+	var responseBody []byte
 	wroteDownstream := false
 	needModelReplace := originalModel != mappedModel
 	var mappedModelBytes []byte
@@ -2119,6 +2120,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		frame = append(frame, "data: "...)
 		frame = append(frame, message...)
 		frame = append(frame, '\n', '\n')
+		responseBody = append(responseBody, frame...)
 		_, wErr := c.Writer.Write(frame)
 		if wErr == nil {
 			wroteDownstream = true
@@ -2385,6 +2387,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		}
 
 		c.Data(http.StatusOK, "application/json", finalResponse)
+		responseBody = append(responseBody[:0], finalResponse...)
 	} else {
 		flushStreamWriter(true)
 	}
@@ -2432,6 +2435,7 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 		Stream:           reqStream,
 		OpenAIWSMode:     true,
 		ResponseHeaders:  lease.HandshakeHeaders(),
+		ResponseBody:     append([]byte(nil), responseBody...),
 		Duration:         time.Since(startTime),
 		FirstTokenMs:     firstTokenMs,
 	}, nil
@@ -3168,6 +3172,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		tokenEventCount := 0
 		terminalEventCount := 0
 		replayCollector := &openAIWSToolCallReplayCollector{}
+		responseBody := make([]byte, 0, 4096)
 		firstEventType := ""
 		lastEventType := ""
 		needModelReplace := false
@@ -3311,6 +3316,8 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 						upstreamMessage = corrected
 					}
 				}
+				responseBody = append(responseBody, upstreamMessage...)
+				responseBody = append(responseBody, '\n')
 				replayCollector.AddEvent(eventType, upstreamMessage)
 				if err := writeClientMessage(upstreamMessage); err != nil {
 					if isOpenAIWSClientDisconnectError(err) {
@@ -3372,6 +3379,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 					Stream:          reqStream,
 					OpenAIWSMode:    true,
 					ResponseHeaders: lease.HandshakeHeaders(),
+					ResponseBody:    append([]byte(nil), responseBody...),
 					Duration:        time.Since(turnStart),
 					FirstTokenMs:    firstTokenMs,
 				}

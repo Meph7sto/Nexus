@@ -423,7 +423,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		if service.GetOpsCyberPolicy(c) != nil {
 			cyberBlockKeyHTTP = service.CyberSessionBlockKey(apiKey.ID, c, sessionHashBody)
 		}
-		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockKeyHTTP, channelMapping.ToUsageFields(reqModel, ""), service.HashUsageRequestPayload(body))
+		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockKeyHTTP, channelMapping.ToUsageFields(reqModel, ""), body, service.HashUsageRequestPayload(body))
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
 		responseLatencyMs := forwardDurationMs
@@ -525,6 +525,18 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		inboundEndpoint := GetInboundEndpoint(c)
 		upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account)
 		quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
+		var responseBody []byte
+		stream := false
+		upstreamModel := ""
+		if result != nil {
+			responseBody = result.ResponseBody
+			stream = result.Stream
+			upstreamModel = result.UpstreamModel
+		}
+		capture := service.BuildUsageInteractionCapture(body, responseBody, map[string]any{
+			"stream": stream,
+			"model":  reqModel,
+		})
 
 		// 使用量记录通过有界 worker 池提交，避免请求热路径创建无界 goroutine。
 		cyberBlocked := service.GetOpsCyberPolicy(c) != nil
@@ -542,8 +554,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 				RequestPayloadHash: requestPayloadHash,
 				APIKeyService:      h.apiKeyService,
 				QuotaPlatform:      quotaPlatform,
-				ChannelUsageFields: channelMapping.ToUsageFields(reqModel, result.UpstreamModel),
+				ChannelUsageFields: channelMapping.ToUsageFields(reqModel, upstreamModel),
 				CyberBlocked:       cyberBlocked,
+				Interaction:        capture,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.responses"),
@@ -846,7 +859,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		if service.GetOpsCyberPolicy(c) != nil {
 			cyberBlockKeyMsg = service.CyberSessionBlockKey(apiKey.ID, c, body)
 		}
-		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockKeyMsg, channelMappingMsg.ToUsageFields(reqModel, ""), service.HashUsageRequestPayload(body))
+		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockKeyMsg, channelMappingMsg.ToUsageFields(reqModel, ""), body, service.HashUsageRequestPayload(body))
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
 		responseLatencyMs := forwardDurationMs
@@ -940,6 +953,18 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		inboundEndpoint := GetInboundEndpoint(c)
 		upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account)
 		quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
+		var responseBody []byte
+		stream := false
+		upstreamModel := ""
+		if result != nil {
+			responseBody = result.ResponseBody
+			stream = result.Stream
+			upstreamModel = result.UpstreamModel
+		}
+		capture := service.BuildUsageInteractionCapture(body, responseBody, map[string]any{
+			"stream": stream,
+			"model":  reqModel,
+		})
 
 		cyberBlocked := service.GetOpsCyberPolicy(c) != nil
 		h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
@@ -956,8 +981,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				RequestPayloadHash: requestPayloadHash,
 				APIKeyService:      h.apiKeyService,
 				QuotaPlatform:      quotaPlatform,
-				ChannelUsageFields: channelMappingMsg.ToUsageFields(reqModel, result.UpstreamModel),
+				ChannelUsageFields: channelMappingMsg.ToUsageFields(reqModel, upstreamModel),
 				CyberBlocked:       cyberBlocked,
+				Interaction:        capture,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.messages"),
@@ -1451,12 +1477,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		)
 
 		var requestPayloadHash string
+		var currentTurnPayload []byte
+		currentTurnModel := reqModel
 		hooks := &service.OpenAIWSIngressHooks{
 			InitialRequestModel: reqModel,
 			BeforeRequest: func(turn int, payload []byte, originalModel string) error {
-				if turn == 1 {
-					return nil
-				}
+				turnPayload := append([]byte(nil), payload...)
 				if !gjson.ValidBytes(payload) {
 					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", errors.New("invalid json"))
 				}
@@ -1466,6 +1492,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				}
 				if model == "" {
 					model = reqModel
+				}
+				currentTurnPayload = turnPayload
+				currentTurnModel = model
+				requestPayloadHash = service.HashUsageRequestPayload(turnPayload)
+				if turn == 1 {
+					return nil
 				}
 				if decision := h.checkContentModeration(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIResponses, model, payload); decision != nil && decision.Blocked {
 					writeContentModerationWSError(ctx, wsConn, decision)
@@ -1514,7 +1546,16 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				// 届时 defer 已清除标记）。
 				defer clearCyberPolicyTurnState(c)
 				releaseTurnSlots()
-				h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, turnErr != nil, cyberBlockKey, channelMappingWS.ToUsageFields(reqModel, ""), requestPayloadHash)
+				turnPayload := currentTurnPayload
+				if len(turnPayload) == 0 {
+					turnPayload = firstMessage
+				}
+				turnModel := strings.TrimSpace(currentTurnModel)
+				if turnModel == "" {
+					turnModel = reqModel
+				}
+				turnRequestPayloadHash := requestPayloadHash
+				h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, turnModel, turnErr != nil, cyberBlockKey, channelMappingWS.ToUsageFields(turnModel, ""), turnPayload, turnRequestPayloadHash)
 				if service.GetOpsCyberPolicy(c) != nil {
 					cyberBlockedThisConn = true
 				}
@@ -1545,6 +1586,16 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account)
 				quotaPlatform := service.QuotaPlatform(c.Request.Context(), apiKey)
 				cyberBlocked := service.GetOpsCyberPolicy(c) != nil
+				capture := &service.UsageInteractionCapture{
+					RequestContent:  service.BuildUsageInteractionContentFromRequestBody(turnPayload),
+					ResponseContent: service.BuildUsageInteractionContentFromResponseBody(result.ResponseBody),
+					RequestParameters: map[string]any{
+						"stream": true,
+						"model":  turnModel,
+					},
+					RawRequestJSON:  service.JSONMapFromRawForUsageInteraction(turnPayload),
+					RawResponseJSON: service.JSONMapFromRawForUsageInteraction(result.ResponseBody),
+				}
 				h.submitOpenAIUsageRecordTask(ctx, result, func(taskCtx context.Context) {
 					if err := h.gatewayService.RecordUsage(taskCtx, &service.OpenAIRecordUsageInput{
 						Result:             result,
@@ -1556,11 +1607,12 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 						UpstreamEndpoint:   upstreamEndpoint,
 						UserAgent:          userAgent,
 						IPAddress:          clientIP,
-						RequestPayloadHash: requestPayloadHash,
+						RequestPayloadHash: turnRequestPayloadHash,
 						APIKeyService:      h.apiKeyService,
 						QuotaPlatform:      quotaPlatform,
-						ChannelUsageFields: channelMappingWS.ToUsageFields(reqModel, result.UpstreamModel),
+						ChannelUsageFields: channelMappingWS.ToUsageFields(turnModel, result.UpstreamModel),
 						CyberBlocked:       cyberBlocked,
+						Interaction:        capture,
 					}); err != nil {
 						reqLog.Error("openai.websocket_record_usage_failed",
 							zap.Int64("account_id", account.ID),
@@ -1592,6 +1644,8 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 
 		// WebSocket 首包可能很大，hash 必须在 hooks 外算成字符串，避免 AfterTurn 闭包保活请求体。
 		requestPayloadHash = service.HashUsageRequestPayload(wsFirstMessage)
+		currentTurnPayload = append([]byte(nil), wsFirstMessage...)
+		currentTurnModel = reqModel
 
 		if err := h.gatewayService.ProxyResponsesWebSocketFromClient(ctx, c, wsConn, account, token, wsFirstMessage, hooks); err != nil {
 			var failoverErr *service.UpstreamFailoverError
@@ -2314,7 +2368,7 @@ func (h *OpenAIGatewayHandler) enqueueCyberSessionBlockedOpsEntry(c *gin.Context
 // 并在 forward 返回错误时写一条 tokens=0 用量行。标记由 gateway 服务层在透传 cyber 后设置；
 // 当前请求已发给用户，本方法只做事后记录，不影响响应。forwardErrored 为 true 时才写用量行，
 // 避免与正常 RecordUsage(forward 成功路径)重复。每请求至多记录一次。
-func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey *service.APIKey, account *service.Account, subscription *service.UserSubscription, model string, forwardErrored bool, cyberBlockKey string, channelFields service.ChannelUsageFields, requestPayloadHash string) {
+func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey *service.APIKey, account *service.Account, subscription *service.UserSubscription, model string, forwardErrored bool, cyberBlockKey string, channelFields service.ChannelUsageFields, requestBody []byte, requestPayloadHash string) {
 	mark := service.GetOpsCyberPolicy(c)
 	if mark == nil {
 		return
@@ -2426,6 +2480,19 @@ func (h *OpenAIGatewayHandler) recordCyberPolicyIfMarked(c *gin.Context, apiKey 
 				IPAddress:          clientIPStr,
 				RequestPayloadHash: requestPayloadHash,
 				APIKeyService:      apiKeySvc,
+				Interaction: &service.UsageInteractionCapture{
+					RequestContent:  service.BuildUsageInteractionContentFromRequestBody(requestBody),
+					ResponseContent: service.BuildUsageInteractionContentFromResponseBody([]byte(mark.Body)),
+					RequestParameters: map[string]any{
+						"stream": stream,
+						"model":  model,
+					},
+					RoutingContext: map[string]any{
+						"capture": "cyber_policy",
+					},
+					RawRequestJSON:  service.JSONMapFromRawForUsageInteraction(requestBody),
+					RawResponseJSON: service.JSONMapFromRawForUsageInteraction([]byte(mark.Body)),
+				},
 				ChannelUsageFields: channelFields,
 			})
 		}

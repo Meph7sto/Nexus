@@ -198,6 +198,17 @@
  <span class="text-sm text-gray-600 ">{{ formatDateTime(value) }}</span>
  </template>
 
+ <template #cell-actions="{ row }">
+ <button
+ type="button"
+ data-test="usage-interaction-link"
+ class="btn btn-secondary btn-sm whitespace-nowrap"
+ @click="$emit('openInteraction', row.id)"
+ >
+ {{ t('usage.interactionDetails') }}
+ </button>
+ </template>
+
  <template #cell-user_agent="{ row }">
  <span v-if="row.user_agent" class="text-sm text-gray-600 block max-w-[320px] truncate" :title="row.user_agent">{{ formatUserAgent(row.user_agent) }}</span>
  <span v-else class="text-sm text-gray-400 ">-</span>
@@ -488,6 +499,7 @@ const emit = defineEmits<{
  userClick: [userID: number, email?: string]
  sort: [key: string, order: 'asc' | 'desc']
  ipGeoBatchFailed: []
+ openInteraction: [usageLogID: number]
 }>()
 const { t } = useI18n()
 const showAccountBilling = props.showAccountBilling

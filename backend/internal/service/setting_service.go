@@ -2230,6 +2230,13 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingPaymentVisibleMethodWxpayEnabled] = strconv.FormatBool(settings.PaymentVisibleMethodWxpayEnabled)
 	updates[openAIAdvancedSchedulerSettingKey] = strconv.FormatBool(settings.OpenAIAdvancedSchedulerEnabled)
 
+	updates[SettingKeyUsageInteractionRecordingEnabled] = strconv.FormatBool(settings.UsageInteractionRecordingEnabled)
+	updates[SettingKeyUsageInteractionStoreRawEnabled] = strconv.FormatBool(settings.UsageInteractionStoreRawEnabled)
+	if settings.UsageInteractionRetentionDays < 0 {
+		return nil, infraerrors.BadRequest("INVALID_USAGE_INTERACTION_RETENTION", "usage interaction retention days must be >= 0")
+	}
+	updates[SettingKeyUsageInteractionRetentionDays] = strconv.Itoa(settings.UsageInteractionRetentionDays)
+
 	// 余额、订阅到期与账号限额通知
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)
 	updates[SettingKeyBalanceLowNotifyThreshold] = strconv.FormatFloat(settings.BalanceLowNotifyThreshold, 'f', 8, 64)
@@ -3208,7 +3215,10 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingPaymentVisibleMethodWxpayEnabled:      "false",
 		openAIAdvancedSchedulerSettingKey:            "false",
 
-		SettingKeyAllowUserViewErrorRequests: "false",
+		SettingKeyUsageInteractionRecordingEnabled: "false",
+		SettingKeyUsageInteractionStoreRawEnabled:  "false",
+		SettingKeyUsageInteractionRetentionDays:    "7",
+		SettingKeyAllowUserViewErrorRequests:       "false",
 	}
 
 	return s.settingRepo.SetMultiple(ctx, defaults)
@@ -3786,6 +3796,16 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	if result.AccountQuotaNotifyEmails == nil {
 		result.AccountQuotaNotifyEmails = []NotifyEmailEntry{}
 	}
+
+	usageInteractionRetentionDays := 7
+	if raw := strings.TrimSpace(settings[SettingKeyUsageInteractionRetentionDays]); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed >= 0 {
+			usageInteractionRetentionDays = parsed
+		}
+	}
+	result.UsageInteractionRecordingEnabled = settings[SettingKeyUsageInteractionRecordingEnabled] == "true"
+	result.UsageInteractionStoreRawEnabled = settings[SettingKeyUsageInteractionStoreRawEnabled] == "true"
+	result.UsageInteractionRetentionDays = usageInteractionRetentionDays
 
 	// 系统层默认 platform quota（修复 Bug B：parseSettings 不填充导致回显恒为 nil）
 	if raw := settings[SettingKeyDefaultPlatformQuotas]; raw != "" {

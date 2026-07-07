@@ -330,8 +330,10 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 	c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	// Marshal then bytes-replace so tool name mapping is reversed at byte level
 	// (parity with Parrot non-stream flow that marshals → restore → emit).
+	var responseBody []byte
 	if respBytes, err := json.Marshal(ccResp); err == nil {
 		respBytes = reverseToolNamesIfPresent(c, respBytes)
+		responseBody = append([]byte(nil), respBytes...)
 		c.Data(http.StatusOK, "application/json; charset=utf-8", respBytes)
 	} else {
 		c.JSON(http.StatusOK, ccResp)
@@ -344,6 +346,7 @@ func (s *GatewayService) handleCCBufferedFromAnthropic(
 		UpstreamModel:   mappedModel,
 		ReasoningEffort: reasoningEffort,
 		Stream:          false,
+		ResponseBody:    responseBody,
 		Duration:        time.Since(startTime),
 	}, nil
 }
@@ -380,6 +383,7 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 	var usage ClaudeUsage
 	var firstTokenMs *int
 	firstChunk := true
+	var responseBody []byte
 
 	scanner := bufio.NewScanner(resp.Body)
 	maxLineSize := defaultMaxLineSize
@@ -396,6 +400,7 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 			UpstreamModel:   mappedModel,
 			ReasoningEffort: reasoningEffort,
 			Stream:          true,
+			ResponseBody:    append([]byte(nil), responseBody...),
 			Duration:        time.Since(startTime),
 			FirstTokenMs:    firstTokenMs,
 		}
@@ -409,6 +414,7 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 		// Reverse tool name mapping: fake → real, per-chunk bytes.Replace.
 		// c 可能持有请求侧注入的 ToolNameRewrite；无则仅做静态前缀还原。
 		out := string(reverseToolNamesIfPresent(c, []byte(sse)))
+		responseBody = append(responseBody, out...)
 		if _, err := fmt.Fprint(c.Writer, out); err != nil {
 			return true // client disconnected
 		}
@@ -493,7 +499,9 @@ func (s *GatewayService) handleCCStreamingFromAnthropic(
 	}
 
 	// Write [DONE] marker
-	fmt.Fprint(c.Writer, "data: [DONE]\n\n") //nolint:errcheck
+	doneMarker := "data: [DONE]\n\n"
+	responseBody = append(responseBody, doneMarker...)
+	fmt.Fprint(c.Writer, doneMarker) //nolint:errcheck
 	c.Writer.Flush()
 
 	return resultWithUsage(), nil
