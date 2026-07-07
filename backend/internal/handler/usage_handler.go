@@ -464,7 +464,7 @@ func (h *UsageHandler) Ranking(c *gin.Context) {
 		EndTime:         endTime,
 		Page:            page,
 		PageSize:        pageSize,
-		IncludeIdentity: role == service.RoleAdmin,
+		IncludeIdentity: role == service.RoleAdmin || role == service.RoleSuperAdmin,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

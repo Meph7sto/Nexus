@@ -126,6 +126,32 @@ func TestUsageRankingShowsIdentityForAdmins(t *testing.T) {
 	require.Equal(t, "alice@example.com", item["email"])
 }
 
+func TestUsageRankingShowsIdentityForSuperAdmins(t *testing.T) {
+	repo := &rankingUsageRepoCapture{
+		rows: []usagestats.UserUsageRankingItem{{
+			Rank:            1,
+			UserID:          7,
+			Nickname:        "alice",
+			Email:           "alice@example.com",
+			Requests:        3,
+			TotalTokens:     123,
+			TotalActualCost: 0.45,
+		}},
+	}
+	router := newUsageRankingTestRouter(repo, service.RoleSuperAdmin)
+
+	req := httptest.NewRequest(http.MethodGet, "/usage/ranking?rank_by=cost", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	data := decodeRankingResponse(t, rec)
+	item := data["items"].([]any)[0].(map[string]any)
+	require.Equal(t, float64(7), item["user_id"])
+	require.Equal(t, "alice", item["nickname"])
+	require.Equal(t, "alice@example.com", item["email"])
+}
+
 func TestUsageRankingRejectsInvalidInputs(t *testing.T) {
 	tests := []string{
 		"/usage/ranking?rank_by=requests",
