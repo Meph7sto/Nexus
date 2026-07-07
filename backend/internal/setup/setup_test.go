@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Wei-Shaw/nexus/internal/service"
 )
 
 func TestDecideAdminBootstrap(t *testing.T) {
@@ -69,6 +71,23 @@ func TestSetupDefaultAdminConcurrency(t *testing.T) {
 			t.Fatalf("setupDefaultAdminConcurrency()=%d, want %d", got, defaultUserConcurrency)
 		}
 	})
+}
+
+func TestInitialAdminBootstrapUsesSuperAdminRole(t *testing.T) {
+	if got := initialAdminBootstrapRole(); got != service.RoleSuperAdmin {
+		t.Fatalf("initialAdminBootstrapRole()=%q, want %q", got, service.RoleSuperAdmin)
+	}
+}
+
+func TestAdminBootstrapExistingRolesIncludesSuperAdmin(t *testing.T) {
+	roles := adminBootstrapExistingRoles()
+
+	if len(roles) != 2 {
+		t.Fatalf("adminBootstrapExistingRoles() length=%d, want 2: %#v", len(roles), roles)
+	}
+	if roles[0] != service.RoleAdmin || roles[1] != service.RoleSuperAdmin {
+		t.Fatalf("adminBootstrapExistingRoles()=%#v, want admin and super_admin", roles)
+	}
 }
 
 func TestSetupMigrationTimeout(t *testing.T) {

@@ -146,6 +146,14 @@ func decideAdminBootstrap(totalUsers, adminUsers int64) adminBootstrapDecision {
 	}
 }
 
+func initialAdminBootstrapRole() string {
+	return service.RoleSuperAdmin
+}
+
+func adminBootstrapExistingRoles() []string {
+	return []string{service.RoleAdmin, service.RoleSuperAdmin}
+}
+
 // NeedsSetup checks if the system needs initial setup
 // Uses multiple checks to prevent attackers from forcing re-setup by deleting config
 func NeedsSetup() bool {
@@ -391,7 +399,8 @@ func createAdminUser(cfg *SetupConfig) (bool, string, error) {
 		return false, "", err
 	}
 	var adminUsers int64
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(1) FROM users WHERE role = $1", service.RoleAdmin).Scan(&adminUsers); err != nil {
+	adminRoles := adminBootstrapExistingRoles()
+	if err := db.QueryRowContext(ctx, "SELECT COUNT(1) FROM users WHERE role IN ($1, $2)", adminRoles[0], adminRoles[1]).Scan(&adminUsers); err != nil {
 		return false, "", err
 	}
 	decision := decideAdminBootstrap(totalUsers, adminUsers)
@@ -411,7 +420,7 @@ func createAdminUser(cfg *SetupConfig) (bool, string, error) {
 
 	admin := &service.User{
 		Email:       cfg.Admin.Email,
-		Role:        service.RoleAdmin,
+		Role:        initialAdminBootstrapRole(),
 		Status:      service.StatusActive,
 		Balance:     0,
 		Concurrency: setupDefaultAdminConcurrency(),
