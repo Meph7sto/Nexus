@@ -100,22 +100,12 @@ func redactUsageInteractionValue(value any) (any, []string, bool) {
 			normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(key), "_", ""))
 			lookupKey := strings.ToLower(strings.TrimSpace(key))
 			if _, ok := usageInteractionSecretKeys[normalized]; ok {
-				if strings.Contains(lookupKey, "token") {
-					keys = append(keys, key)
-					changed = true
-					continue
-				}
 				out[key] = "[REDACTED]"
 				keys = append(keys, key)
 				changed = true
 				continue
 			}
 			if _, ok := usageInteractionSecretKeys[lookupKey]; ok {
-				if strings.Contains(lookupKey, "token") {
-					keys = append(keys, key)
-					changed = true
-					continue
-				}
 				out[key] = "[REDACTED]"
 				keys = append(keys, key)
 				changed = true

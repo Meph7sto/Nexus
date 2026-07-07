@@ -31,8 +31,55 @@ func TestRedactUsageInteractionPayload_RedactsCredentialsAndKeepsPrompt(t *testi
 	if !containsAll(text, "keep this exact prompt", "[REDACTED]", "visible") {
 		t.Fatalf("unexpected redacted payload: %s", text)
 	}
-	if containsAll(text, "Bearer secret") || containsAll(text, "tok") {
+	if strings.Contains(text, "Bearer secret") || strings.Contains(text, `"access_token":"tok"`) {
 		t.Fatalf("secret leaked in payload: %s", text)
+	}
+}
+
+func TestRedactUsageInteractionPayload_PreservesCredentialKeysWithRedactedValues(t *testing.T) {
+	credentialKeys := []string{
+		"Authorization",
+		"Proxy-Authorization",
+		"Cookie",
+		"Set-Cookie",
+		"api_key",
+		"apiKey",
+		"key",
+		"token",
+		"access_token",
+		"refresh_token",
+		"id_token",
+		"session_token",
+		"secret",
+		"client_secret",
+	}
+	payload := make(map[string]any, len(credentialKeys)+1)
+	payload["normal"] = "visible"
+	for _, key := range credentialKeys {
+		payload[key] = "leak-" + key
+	}
+
+	got, keys, changed := RedactUsageInteractionPayload(payload)
+	if !changed {
+		t.Fatal("expected redaction to be applied")
+	}
+	if len(keys) != len(credentialKeys) {
+		t.Fatalf("redaction keys = %v, want %d keys", keys, len(credentialKeys))
+	}
+	for _, key := range credentialKeys {
+		value, ok := got[key]
+		if !ok {
+			t.Fatalf("expected credential key %q to remain present; payload: %#v", key, got)
+		}
+		if value != "[REDACTED]" {
+			t.Fatalf("expected %q to be [REDACTED], got %#v", key, value)
+		}
+		if !containsString(keys, key) {
+			t.Fatalf("expected redaction keys to include %q; got %v", key, keys)
+		}
+	}
+	if got["normal"] != "visible" {
+		t.Fatalf("normal key = %#v, want visible", got["normal"])
 	}
 }
 
@@ -43,6 +90,15 @@ func containsAll(s string, values ...string) bool {
 		}
 	}
 	return true
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestUsageInteractionSettings_ParseDefaultsAndExplicitValues(t *testing.T) {
