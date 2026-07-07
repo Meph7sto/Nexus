@@ -565,6 +565,7 @@ type ForwardResult struct {
 	FirstTokenMs     *int // 首字时间（流式请求）
 	ClientDisconnect bool // 客户端是否在流式传输过程中断开
 	ReasoningEffort  *string
+	ResponseBody     []byte
 
 	// 图片生成计费字段（图片生成模型使用）
 	ImageCount         int    // 生成的图片数量
@@ -617,42 +618,43 @@ func (s *GatewayService) TempUnscheduleRetryableError(ctx context.Context, accou
 
 // GatewayService handles API gateway operations
 type GatewayService struct {
-	accountRepo           AccountRepository
-	groupRepo             GroupRepository
-	usageLogRepo          UsageLogRepository
-	usageBillingRepo      UsageBillingRepository
-	userRepo              UserRepository
-	userSubRepo           UserSubscriptionRepository
-	userGroupRateRepo     UserGroupRateRepository
-	cache                 GatewayCache
-	digestStore           *DigestSessionStore
-	cfg                   *config.Config
-	schedulerSnapshot     *SchedulerSnapshotService
-	billingService        *BillingService
-	rateLimitService      *RateLimitService
-	billingCacheService   *BillingCacheService
-	identityService       *IdentityService
-	httpUpstream          HTTPUpstream
-	deferredService       *DeferredService
-	concurrencyService    *ConcurrencyService
-	claudeTokenProvider   *ClaudeTokenProvider
-	sessionLimitCache     SessionLimitCache // 会话数量限制缓存（仅 Anthropic OAuth/SetupToken）
-	rpmCache              RPMCache          // RPM 计数缓存（仅 Anthropic OAuth/SetupToken）
-	userGroupRateResolver *userGroupRateResolver
-	userGroupRateCache    *gocache.Cache
-	userGroupRateSF       singleflight.Group
-	modelsListCache       *gocache.Cache
-	modelsListCacheTTL    time.Duration
-	settingService        *SettingService
-	responseHeaderFilter  *responseheaders.CompiledHeaderFilter
-	debugModelRouting     atomic.Bool
-	debugClaudeMimic      atomic.Bool
-	channelService        *ChannelService
-	resolver              *ModelPricingResolver
-	debugGatewayBodyFile  atomic.Pointer[os.File] // non-nil when NEXUS_DEBUG_GATEWAY_BODY is set
-	tlsFPProfileService   *TLSFingerprintProfileService
-	balanceNotifyService  *BalanceNotifyService
-	userPlatformQuotaRepo UserPlatformQuotaRepository
+	accountRepo             AccountRepository
+	groupRepo               GroupRepository
+	usageLogRepo            UsageLogRepository
+	usageBillingRepo        UsageBillingRepository
+	userRepo                UserRepository
+	userSubRepo             UserSubscriptionRepository
+	userGroupRateRepo       UserGroupRateRepository
+	cache                   GatewayCache
+	digestStore             *DigestSessionStore
+	cfg                     *config.Config
+	schedulerSnapshot       *SchedulerSnapshotService
+	billingService          *BillingService
+	rateLimitService        *RateLimitService
+	billingCacheService     *BillingCacheService
+	identityService         *IdentityService
+	httpUpstream            HTTPUpstream
+	deferredService         *DeferredService
+	concurrencyService      *ConcurrencyService
+	claudeTokenProvider     *ClaudeTokenProvider
+	sessionLimitCache       SessionLimitCache // 会话数量限制缓存（仅 Anthropic OAuth/SetupToken）
+	rpmCache                RPMCache          // RPM 计数缓存（仅 Anthropic OAuth/SetupToken）
+	userGroupRateResolver   *userGroupRateResolver
+	userGroupRateCache      *gocache.Cache
+	userGroupRateSF         singleflight.Group
+	modelsListCache         *gocache.Cache
+	modelsListCacheTTL      time.Duration
+	settingService          *SettingService
+	responseHeaderFilter    *responseheaders.CompiledHeaderFilter
+	debugModelRouting       atomic.Bool
+	debugClaudeMimic        atomic.Bool
+	channelService          *ChannelService
+	resolver                *ModelPricingResolver
+	debugGatewayBodyFile    atomic.Pointer[os.File] // non-nil when NEXUS_DEBUG_GATEWAY_BODY is set
+	tlsFPProfileService     *TLSFingerprintProfileService
+	balanceNotifyService    *BalanceNotifyService
+	userPlatformQuotaRepo   UserPlatformQuotaRepository
+	usageInteractionService *UsageInteractionService
 }
 
 // NewGatewayService creates a new GatewayService
@@ -684,42 +686,44 @@ func NewGatewayService(
 	resolver *ModelPricingResolver,
 	balanceNotifyService *BalanceNotifyService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	usageInteractionService *UsageInteractionService,
 ) *GatewayService {
 	userGroupRateTTL := resolveUserGroupRateCacheTTL(cfg)
 	modelsListTTL := resolveModelsListCacheTTL(cfg)
 
 	svc := &GatewayService{
-		accountRepo:           accountRepo,
-		groupRepo:             groupRepo,
-		usageLogRepo:          usageLogRepo,
-		usageBillingRepo:      usageBillingRepo,
-		userRepo:              userRepo,
-		userSubRepo:           userSubRepo,
-		userGroupRateRepo:     userGroupRateRepo,
-		cache:                 cache,
-		digestStore:           digestStore,
-		cfg:                   cfg,
-		schedulerSnapshot:     schedulerSnapshot,
-		concurrencyService:    concurrencyService,
-		billingService:        billingService,
-		rateLimitService:      rateLimitService,
-		billingCacheService:   billingCacheService,
-		identityService:       identityService,
-		httpUpstream:          httpUpstream,
-		deferredService:       deferredService,
-		claudeTokenProvider:   claudeTokenProvider,
-		sessionLimitCache:     sessionLimitCache,
-		rpmCache:              rpmCache,
-		userGroupRateCache:    gocache.New(userGroupRateTTL, time.Minute),
-		settingService:        settingService,
-		modelsListCache:       gocache.New(modelsListTTL, time.Minute),
-		modelsListCacheTTL:    modelsListTTL,
-		responseHeaderFilter:  compileResponseHeaderFilter(cfg),
-		tlsFPProfileService:   tlsFPProfileService,
-		channelService:        channelService,
-		resolver:              resolver,
-		balanceNotifyService:  balanceNotifyService,
-		userPlatformQuotaRepo: userPlatformQuotaRepo,
+		accountRepo:             accountRepo,
+		groupRepo:               groupRepo,
+		usageLogRepo:            usageLogRepo,
+		usageBillingRepo:        usageBillingRepo,
+		userRepo:                userRepo,
+		userSubRepo:             userSubRepo,
+		userGroupRateRepo:       userGroupRateRepo,
+		cache:                   cache,
+		digestStore:             digestStore,
+		cfg:                     cfg,
+		schedulerSnapshot:       schedulerSnapshot,
+		concurrencyService:      concurrencyService,
+		billingService:          billingService,
+		rateLimitService:        rateLimitService,
+		billingCacheService:     billingCacheService,
+		identityService:         identityService,
+		httpUpstream:            httpUpstream,
+		deferredService:         deferredService,
+		claudeTokenProvider:     claudeTokenProvider,
+		sessionLimitCache:       sessionLimitCache,
+		rpmCache:                rpmCache,
+		userGroupRateCache:      gocache.New(userGroupRateTTL, time.Minute),
+		settingService:          settingService,
+		modelsListCache:         gocache.New(modelsListTTL, time.Minute),
+		modelsListCacheTTL:      modelsListTTL,
+		responseHeaderFilter:    compileResponseHeaderFilter(cfg),
+		tlsFPProfileService:     tlsFPProfileService,
+		channelService:          channelService,
+		resolver:                resolver,
+		balanceNotifyService:    balanceNotifyService,
+		userPlatformQuotaRepo:   userPlatformQuotaRepo,
+		usageInteractionService: usageInteractionService,
 	}
 	svc.userGroupRateResolver = newUserGroupRateResolver(
 		userGroupRateRepo,
@@ -9001,6 +9005,7 @@ type RecordUsageInput struct {
 	ForceCacheBilling  bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
 	APIKeyService      APIKeyQuotaUpdater // 可选：用于更新API Key配额
 	QuotaPlatform      string             // user×platform 配额计量平台：handler 在请求 ctx 内经 QuotaPlatform() 算定后传入（后扣运行在 worker 池 background ctx 上，取不到 ForcePlatform）
+	Interaction        *UsageInteractionCapture
 
 	ChannelUsageFields // 渠道映射信息（由 handler 在 Forward 前解析）
 }
@@ -9463,12 +9468,21 @@ func (s *GatewayService) billingDeps() *billingDeps {
 	}
 }
 
-func writeUsageLogBestEffort(ctx context.Context, repo UsageLogRepository, usageLog *UsageLog, logKey string) {
+func writeUsageLogBestEffort(ctx context.Context, repo UsageLogRepository, usageLog *UsageLog, logKey string, requirePersistedID bool) (bool, error) {
 	if repo == nil || usageLog == nil {
-		return
+		return false, nil
 	}
 	usageCtx, cancel := detachedBillingContext(ctx)
 	defer cancel()
+
+	if requirePersistedID {
+		inserted, err := repo.Create(usageCtx, usageLog)
+		if err != nil {
+			logger.LegacyPrintf(logKey, "Create usage log for interaction failed: %v", err)
+			return false, err
+		}
+		return inserted, nil
+	}
 
 	if writer, ok := repo.(usageLogBestEffortWriter); ok {
 		if err := writer.CreateBestEffort(usageCtx, usageLog); err != nil {
@@ -9483,16 +9497,22 @@ func writeUsageLogBestEffort(ctx context.Context, repo UsageLogRepository, usage
 				fallbackCtx, fallbackCancel = detachedBillingContext(context.Background())
 				defer fallbackCancel()
 			}
-			if _, syncErr := repo.Create(fallbackCtx, usageLog); syncErr != nil {
+			inserted, syncErr := repo.Create(fallbackCtx, usageLog)
+			if syncErr != nil {
 				logger.LegacyPrintf(logKey, "Create usage log sync fallback failed: %v", syncErr)
+				return false, syncErr
 			}
+			return inserted, nil
 		}
-		return
+		return false, nil
 	}
 
-	if _, err := repo.Create(usageCtx, usageLog); err != nil {
+	inserted, err := repo.Create(usageCtx, usageLog)
+	if err != nil {
 		logger.LegacyPrintf(logKey, "Create usage log failed: %v", err)
+		return false, err
 	}
+	return inserted, nil
 }
 
 // recordUsageOpts 内部选项，参数化普通计费与长上下文计费的差异点。
@@ -9518,6 +9538,7 @@ func (s *GatewayService) RecordUsage(ctx context.Context, input *RecordUsageInpu
 		ForceCacheBilling:  input.ForceCacheBilling,
 		APIKeyService:      input.APIKeyService,
 		QuotaPlatform:      input.QuotaPlatform,
+		Interaction:        input.Interaction,
 		ChannelUsageFields: input.ChannelUsageFields,
 	}, &recordUsageOpts{})
 }
@@ -9539,6 +9560,7 @@ type RecordUsageLongContextInput struct {
 	ForceCacheBilling     bool               // 强制缓存计费：将 input_tokens 转为 cache_read 计费（用于粘性会话切换）
 	APIKeyService         APIKeyQuotaUpdater // API Key 配额服务（可选）
 	QuotaPlatform         string             // user×platform 配额计量平台：handler 在请求 ctx 内经 QuotaPlatform() 算定后传入（后扣运行在 worker 池 background ctx 上，取不到 ForcePlatform）
+	Interaction           *UsageInteractionCapture
 
 	ChannelUsageFields // 渠道映射信息（由 handler 在 Forward 前解析）
 }
@@ -9559,6 +9581,7 @@ func (s *GatewayService) RecordUsageWithLongContext(ctx context.Context, input *
 		ForceCacheBilling:  input.ForceCacheBilling,
 		APIKeyService:      input.APIKeyService,
 		QuotaPlatform:      input.QuotaPlatform,
+		Interaction:        input.Interaction,
 		ChannelUsageFields: input.ChannelUsageFields,
 	}, &recordUsageOpts{
 		LongContextThreshold:  input.LongContextThreshold,
@@ -9581,6 +9604,7 @@ type recordUsageCoreInput struct {
 	ForceCacheBilling  bool
 	APIKeyService      APIKeyQuotaUpdater
 	QuotaPlatform      string
+	Interaction        *UsageInteractionCapture
 	ChannelUsageFields
 }
 
@@ -9672,7 +9696,10 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
-		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
+		recordInteractions := s.usageInteractionRecordingEnabled(ctx)
+		if err := writeUsageLogWithOptionalInteraction(ctx, s.usageLogRepo, usageLog, s.usageInteractionService, input.Interaction, nil, "service.gateway", recordInteractions); err != nil {
+			return err
+		}
 		logger.LegacyPrintf("service.gateway", "[SIMPLE MODE] Usage recorded (not billed): user=%d, tokens=%d", usageLog.UserID, usageLog.TotalTokens())
 		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 		return nil
@@ -9702,9 +9729,24 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	if billingErr != nil {
 		return billingErr
 	}
-	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
+	recordInteractions := s.usageInteractionRecordingEnabled(ctx)
+	if err := writeUsageLogWithOptionalInteraction(ctx, s.usageLogRepo, usageLog, s.usageInteractionService, input.Interaction, nil, "service.gateway", recordInteractions); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func (s *GatewayService) usageInteractionRecordingEnabled(ctx context.Context) bool {
+	if s == nil || s.usageInteractionService == nil {
+		return false
+	}
+	enabled, err := s.usageInteractionService.RecordingEnabled(ctx)
+	if err != nil {
+		logger.LegacyPrintf("service.gateway", "Read usage interaction recording setting failed: %v", err)
+		return true
+	}
+	return enabled
 }
 
 // calculateRecordUsageCost 根据请求类型和选项计算费用。

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	dbent "github.com/Wei-Shaw/nexus/ent"
 	"github.com/Wei-Shaw/nexus/internal/service"
 )
 
@@ -22,6 +23,17 @@ func NewUsageInteractionRepository(db *sql.DB) service.UsageInteractionRepositor
 func (r *usageInteractionRepository) Create(ctx context.Context, input service.UsageInteractionInput, redactionApplied bool, redactionKeys []string) error {
 	if r == nil || r.db == nil {
 		return errors.New("usage interaction repository db is nil")
+	}
+	sqlq := sqlExecutor(r.db)
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		sqlq = tx.Client()
+	}
+	return createUsageInteraction(ctx, sqlq, input, redactionApplied, redactionKeys)
+}
+
+func createUsageInteraction(ctx context.Context, sqlq sqlExecutor, input service.UsageInteractionInput, redactionApplied bool, redactionKeys []string) error {
+	if sqlq == nil {
+		return errors.New("usage interaction sql executor is nil")
 	}
 	status := input.CaptureStatus
 	if status == "" {
@@ -63,7 +75,7 @@ func (r *usageInteractionRepository) Create(ctx context.Context, input service.U
 		createdAt = input.CreatedAt
 	}
 
-	_, err = r.db.ExecContext(ctx, `
+	_, err = sqlq.ExecContext(ctx, `
 		INSERT INTO usage_interactions (
 			usage_log_id, request_id, user_id, api_key_id, account_id, group_id,
 			capture_status, capture_error, request_content, response_content,
@@ -76,6 +88,22 @@ func (r *usageInteractionRepository) Create(ctx context.Context, input service.U
 			$11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb,
 			$15, $16::jsonb, COALESCE($17, NOW())
 		)
+		ON CONFLICT (usage_log_id) DO UPDATE SET
+			request_id = EXCLUDED.request_id,
+			user_id = EXCLUDED.user_id,
+			api_key_id = EXCLUDED.api_key_id,
+			account_id = EXCLUDED.account_id,
+			group_id = EXCLUDED.group_id,
+			capture_status = EXCLUDED.capture_status,
+			capture_error = EXCLUDED.capture_error,
+			request_content = EXCLUDED.request_content,
+			response_content = EXCLUDED.response_content,
+			request_parameters = EXCLUDED.request_parameters,
+			routing_context = EXCLUDED.routing_context,
+			raw_request_json = EXCLUDED.raw_request_json,
+			raw_response_json = EXCLUDED.raw_response_json,
+			redaction_applied = EXCLUDED.redaction_applied,
+			redaction_keys = EXCLUDED.redaction_keys
 	`, input.UsageLogID, input.RequestID, input.UserID, input.APIKeyID, input.AccountID, input.GroupID,
 		status, input.CaptureError, requestContent, responseContent, requestParameters, routingContext,
 		rawRequestJSON, rawResponseJSON, redactionApplied, string(redactionKeysJSON), createdAt)

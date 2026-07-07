@@ -41,6 +41,14 @@ func (s *UsageInteractionService) Settings(ctx context.Context) (UsageInteractio
 	return settings, nil
 }
 
+func (s *UsageInteractionService) RecordingEnabled(ctx context.Context) (bool, error) {
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return false, err
+	}
+	return settings.RecordingEnabled, nil
+}
+
 func (s *UsageInteractionService) RecordComplete(ctx context.Context, input UsageInteractionInput) error {
 	input.CaptureStatus = UsageInteractionCaptureComplete
 	return s.record(ctx, input)

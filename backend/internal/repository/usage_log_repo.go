@@ -341,6 +341,50 @@ func (r *usageLogRepository) Create(ctx context.Context, log *service.UsageLog) 
 	return r.createBatched(ctx, log)
 }
 
+func (r *usageLogRepository) CreateWithUsageInteraction(ctx context.Context, log *service.UsageLog, interactionService *service.UsageInteractionService, capture *service.UsageInteractionCapture, captureErr error) (bool, error) {
+	if log == nil {
+		return false, nil
+	}
+	if interactionService == nil {
+		return r.Create(ctx, log)
+	}
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		inserted, err := r.createSingle(ctx, tx.Client(), log)
+		if err != nil {
+			return false, err
+		}
+		if log.ID > 0 {
+			if err := interactionService.RecordForUsageLogWithFallback(ctx, log, capture, captureErr, "repository.usage_log"); err != nil {
+				return false, err
+			}
+		}
+		return inserted, nil
+	}
+	if r.client == nil {
+		return false, errors.New("usage interaction recording requires ent client transaction support")
+	}
+
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return false, err
+	}
+	txCtx := dbent.NewTxContext(ctx, tx)
+	inserted, err := r.createSingle(txCtx, tx.Client(), log)
+	if err == nil && log.ID > 0 {
+		err = interactionService.RecordForUsageLogWithFallback(txCtx, log, capture, captureErr, "repository.usage_log")
+	}
+	if err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return false, errors.Join(err, rollbackErr)
+		}
+		return false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return inserted, nil
+}
+
 func (r *usageLogRepository) CreateBestEffort(ctx context.Context, log *service.UsageLog) error {
 	if log == nil {
 		return nil

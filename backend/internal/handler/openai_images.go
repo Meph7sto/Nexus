@@ -348,6 +348,14 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		if result != nil {
 			upstreamModel = result.UpstreamModel
 		}
+		var responseBody []byte
+		if result != nil {
+			responseBody = result.ResponseBody
+		}
+		capture := service.BuildUsageInteractionCapture(body, responseBody, map[string]any{
+			"stream": parsed.Stream,
+			"model":  requestModel,
+		})
 		h.submitMandatoryUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 				Result:             result,
@@ -363,6 +371,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 				APIKeyService:      h.apiKeyService,
 				QuotaPlatform:      quotaPlatform,
 				ChannelUsageFields: channelMapping.ToUsageFields(requestModel, upstreamModel),
+				Interaction:        capture,
 			}); err != nil {
 				logger.L().With(
 					zap.String("component", "handler.openai_gateway.images"),

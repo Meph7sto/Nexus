@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/nexus/internal/pkg/logger"
 )
 
 const (
@@ -60,10 +63,23 @@ type UsageInteractionInput struct {
 	CreatedAt         time.Time
 }
 
+type UsageInteractionCapture struct {
+	RequestContent    map[string]any
+	ResponseContent   map[string]any
+	RequestParameters map[string]any
+	RoutingContext    map[string]any
+	RawRequestJSON    map[string]any
+	RawResponseJSON   map[string]any
+}
+
 type UsageInteractionRepository interface {
 	Create(ctx context.Context, input UsageInteractionInput, redactionApplied bool, redactionKeys []string) error
 	GetByUsageLogID(ctx context.Context, usageLogID int64, includeRaw bool) (*UsageInteraction, error)
 	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+}
+
+type usageLogInteractionWriter interface {
+	CreateWithUsageInteraction(ctx context.Context, usageLog *UsageLog, interactionService *UsageInteractionService, capture *UsageInteractionCapture, captureErr error) (bool, error)
 }
 
 var usageInteractionSecretKeys = map[string]struct{}{
@@ -142,4 +158,124 @@ func jsonMapFromRaw(raw []byte) map[string]any {
 		return map[string]any{"raw_text": string(raw)}
 	}
 	return out
+}
+
+func JSONMapFromRawForUsageInteraction(raw []byte) map[string]any {
+	return jsonMapFromRaw(raw)
+}
+
+func BuildUsageInteractionContentFromRequestBody(body []byte) map[string]any {
+	return jsonMapFromRaw(rawUsageInteractionPayload(body))
+}
+
+func BuildUsageInteractionContentFromResponseBody(body []byte) map[string]any {
+	return jsonMapFromRaw(rawUsageInteractionPayload(body))
+}
+
+func BuildUsageInteractionCapture(requestBody, responseBody []byte, requestParameters map[string]any) *UsageInteractionCapture {
+	if requestParameters == nil {
+		requestParameters = map[string]any{}
+	}
+	return &UsageInteractionCapture{
+		RequestContent:    BuildUsageInteractionContentFromRequestBody(requestBody),
+		ResponseContent:   BuildUsageInteractionContentFromResponseBody(responseBody),
+		RequestParameters: requestParameters,
+		RawRequestJSON:    JSONMapFromRawForUsageInteraction(requestBody),
+		RawResponseJSON:   JSONMapFromRawForUsageInteraction(responseBody),
+	}
+}
+
+func rawUsageInteractionPayload(raw []byte) []byte {
+	if len(raw) == 0 {
+		return nil
+	}
+	return raw
+}
+
+func usageInteractionInputFromUsageLog(usageLog *UsageLog, capture *UsageInteractionCapture) UsageInteractionInput {
+	input := UsageInteractionInput{}
+	if usageLog != nil {
+		input.UsageLogID = usageLog.ID
+		input.RequestID = usageLog.RequestID
+		input.UserID = usageLog.UserID
+		input.APIKeyID = usageLog.APIKeyID
+		input.AccountID = usageLog.AccountID
+		input.GroupID = usageLog.GroupID
+		input.CreatedAt = usageLog.CreatedAt
+	}
+	if capture != nil {
+		input.RequestContent = capture.RequestContent
+		input.ResponseContent = capture.ResponseContent
+		input.RequestParameters = capture.RequestParameters
+		input.RoutingContext = capture.RoutingContext
+		input.RawRequestJSON = capture.RawRequestJSON
+		input.RawResponseJSON = capture.RawResponseJSON
+	}
+	return input
+}
+
+func (s *UsageInteractionService) RecordForUsageLog(ctx context.Context, usageLog *UsageLog, capture *UsageInteractionCapture, captureErr error) error {
+	if s == nil || usageLog == nil || usageLog.ID <= 0 {
+		return nil
+	}
+	input := usageInteractionInputFromUsageLog(usageLog, capture)
+	if captureErr != nil {
+		return s.RecordFailed(ctx, input, captureErr.Error())
+	}
+	return s.RecordComplete(ctx, input)
+}
+
+func (s *UsageInteractionService) RecordForUsageLogWithFallback(
+	ctx context.Context,
+	usageLog *UsageLog,
+	capture *UsageInteractionCapture,
+	captureErr error,
+	logKey string,
+) error {
+	if s == nil || usageLog == nil || usageLog.ID <= 0 {
+		return nil
+	}
+
+	err := s.RecordForUsageLog(ctx, usageLog, capture, captureErr)
+	if err == nil {
+		return nil
+	}
+	logger.LegacyPrintf(logKey, "Record usage interaction failed: %v", err)
+
+	if captureErr == nil {
+		if failedErr := s.RecordForUsageLog(ctx, usageLog, nil, err); failedErr == nil {
+			return nil
+		} else {
+			logger.LegacyPrintf(logKey, "Record failed usage interaction placeholder failed: %v", failedErr)
+			err = failedErr
+		}
+	}
+	return err
+}
+
+func writeUsageLogWithOptionalInteraction(
+	ctx context.Context,
+	repo UsageLogRepository,
+	usageLog *UsageLog,
+	interactionService *UsageInteractionService,
+	capture *UsageInteractionCapture,
+	captureErr error,
+	logKey string,
+	recordInteractions bool,
+) error {
+	if recordInteractions && interactionService != nil {
+		usageCtx, cancel := detachedBillingContext(ctx)
+		defer cancel()
+		writer, ok := repo.(usageLogInteractionWriter)
+		if !ok {
+			return fmt.Errorf("usage interaction recording requires atomic usage log writer")
+		}
+		if _, err := writer.CreateWithUsageInteraction(usageCtx, usageLog, interactionService, capture, captureErr); err != nil {
+			logger.LegacyPrintf(logKey, "Create usage log with interaction failed: %v", err)
+			return err
+		}
+		return nil
+	}
+	_, err := writeUsageLogBestEffort(ctx, repo, usageLog, logKey, false)
+	return err
 }

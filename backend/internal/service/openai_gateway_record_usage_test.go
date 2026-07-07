@@ -226,6 +226,7 @@ func newOpenAIRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo U
 		nil,
 		nil,
 		nil, // userPlatformQuotaRepo
+		nil,
 	)
 	svc.userGroupRateResolver = newUserGroupRateResolver(
 		rateRepo,
@@ -666,7 +667,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillsWhenUsageLogCreateReturnsError(t *
 		Account: &Account{ID: 30041},
 	})
 
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.Equal(t, 1, usageRepo.calls)
 	require.Equal(t, 1, userRepo.deductCalls)
 	require.Equal(t, 0, subRepo.incrementCalls)
@@ -698,7 +699,7 @@ func TestOpenAIGatewayServiceRecordUsage_UsageLogWriteErrorDoesNotSkipBilling(t 
 		APIKeyService: quotaSvc,
 	})
 
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.Equal(t, 1, usageRepo.calls)
 	require.Equal(t, 1, userRepo.deductCalls)
 	require.Equal(t, 0, subRepo.incrementCalls)
@@ -732,7 +733,7 @@ func TestOpenAIGatewayServiceRecordUsage_BillingUsesDetachedContext(t *testing.T
 		APIKeyService: quotaSvc,
 	})
 
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.Equal(t, 1, userRepo.deductCalls)
 	require.NoError(t, userRepo.lastCtxErr)
 	require.Equal(t, 1, quotaSvc.quotaCalls)

@@ -144,6 +144,7 @@ type usageInteractionRepoSpy struct {
 	last             UsageInteractionInput
 	redactionApplied bool
 	redactionKeys    []string
+	createErr        error
 	deleted          bool
 	deleteCutoff     time.Time
 	deleteResult     int64
@@ -155,7 +156,7 @@ func (r *usageInteractionRepoSpy) Create(_ context.Context, input UsageInteracti
 	r.last = input
 	r.redactionApplied = redactionApplied
 	r.redactionKeys = append([]string(nil), redactionKeys...)
-	return nil
+	return r.createErr
 }
 func (r *usageInteractionRepoSpy) GetByUsageLogID(context.Context, int64, bool) (*UsageInteraction, error) {
 	return nil, ErrUsageInteractionNotFound

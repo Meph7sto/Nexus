@@ -345,8 +345,10 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 	// 无法覆盖已存在的 SSE 头。这里显式 Set 强制改回 JSON，避免下游中间层
 	// （如 new-api）按 Content-Type 误判为流式。
 	c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	var responseBody []byte
 	if respBytes, err := json.Marshal(responsesResp); err == nil {
 		respBytes = reverseToolNamesIfPresent(c, respBytes)
+		responseBody = append([]byte(nil), respBytes...)
 		c.Data(http.StatusOK, "application/json; charset=utf-8", respBytes)
 	} else {
 		c.JSON(http.StatusOK, responsesResp)
@@ -359,6 +361,7 @@ func (s *GatewayService) handleResponsesBufferedStreamingResponse(
 		UpstreamModel:   mappedModel,
 		ReasoningEffort: reasoningEffort,
 		Stream:          false,
+		ResponseBody:    responseBody,
 		Duration:        time.Since(startTime),
 	}, nil
 }
@@ -389,6 +392,7 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 	var usage ClaudeUsage
 	var firstTokenMs *int
 	firstChunk := true
+	var responseBody []byte
 
 	scanner := bufio.NewScanner(resp.Body)
 	maxLineSize := defaultMaxLineSize
@@ -405,6 +409,7 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 			UpstreamModel:   mappedModel,
 			ReasoningEffort: reasoningEffort,
 			Stream:          true,
+			ResponseBody:    append([]byte(nil), responseBody...),
 			Duration:        time.Since(startTime),
 			FirstTokenMs:    firstTokenMs,
 		}
@@ -439,6 +444,7 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 				continue
 			}
 			out := string(reverseToolNamesIfPresent(c, []byte(sse)))
+			responseBody = append(responseBody, out...)
 			if _, err := fmt.Fprint(c.Writer, out); err != nil {
 				logger.L().Info("forward_as_responses stream: client disconnected",
 					zap.String("request_id", requestID),
@@ -460,6 +466,7 @@ func (s *GatewayService) handleResponsesStreamingResponse(
 					continue
 				}
 				out := string(reverseToolNamesIfPresent(c, []byte(sse)))
+				responseBody = append(responseBody, out...)
 				fmt.Fprint(c.Writer, out) //nolint:errcheck
 			}
 			c.Writer.Flush()

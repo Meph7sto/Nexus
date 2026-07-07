@@ -248,6 +248,7 @@ type OpenAIForwardResult struct {
 	Duration           time.Duration
 	FirstTokenMs       *int
 	ClientDisconnect   bool
+	ResponseBody       []byte
 	ImageCount         int
 	ImageSize          string
 	ImageInputSize     string
@@ -335,31 +336,32 @@ var ErrNoAvailableCompactAccounts = errors.New("no available OpenAI accounts sup
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
-	accountRepo           AccountRepository
-	usageLogRepo          UsageLogRepository
-	usageBillingRepo      UsageBillingRepository
-	userRepo              UserRepository
-	userSubRepo           UserSubscriptionRepository
-	cache                 GatewayCache
-	cfg                   *config.Config
-	codexDetector         CodexClientRestrictionDetector
-	schedulerSnapshot     *SchedulerSnapshotService
-	concurrencyService    *ConcurrencyService
-	billingService        *BillingService
-	rateLimitService      *RateLimitService
-	billingCacheService   *BillingCacheService
-	userGroupRateResolver *userGroupRateResolver
-	httpUpstream          HTTPUpstream
-	deferredService       *DeferredService
-	openAITokenProvider   *OpenAITokenProvider
-	grokTokenProvider     *GrokTokenProvider
-	toolCorrector         *CodexToolCorrector
-	openaiWSResolver      OpenAIWSProtocolResolver
-	resolver              *ModelPricingResolver
-	channelService        *ChannelService
-	balanceNotifyService  *BalanceNotifyService
-	settingService        *SettingService
-	userPlatformQuotaRepo UserPlatformQuotaRepository
+	accountRepo             AccountRepository
+	usageLogRepo            UsageLogRepository
+	usageBillingRepo        UsageBillingRepository
+	userRepo                UserRepository
+	userSubRepo             UserSubscriptionRepository
+	cache                   GatewayCache
+	cfg                     *config.Config
+	codexDetector           CodexClientRestrictionDetector
+	schedulerSnapshot       *SchedulerSnapshotService
+	concurrencyService      *ConcurrencyService
+	billingService          *BillingService
+	rateLimitService        *RateLimitService
+	billingCacheService     *BillingCacheService
+	userGroupRateResolver   *userGroupRateResolver
+	httpUpstream            HTTPUpstream
+	deferredService         *DeferredService
+	openAITokenProvider     *OpenAITokenProvider
+	grokTokenProvider       *GrokTokenProvider
+	toolCorrector           *CodexToolCorrector
+	openaiWSResolver        OpenAIWSProtocolResolver
+	resolver                *ModelPricingResolver
+	channelService          *ChannelService
+	balanceNotifyService    *BalanceNotifyService
+	settingService          *SettingService
+	userPlatformQuotaRepo   UserPlatformQuotaRepository
+	usageInteractionService *UsageInteractionService
 
 	openaiWSPoolOnce              sync.Once
 	openaiWSStateStoreOnce        sync.Once
@@ -406,6 +408,7 @@ func NewOpenAIGatewayService(
 	balanceNotifyService *BalanceNotifyService,
 	settingService *SettingService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	usageInteractionService *UsageInteractionService,
 ) *OpenAIGatewayService {
 	svc := &OpenAIGatewayService{
 		accountRepo:         accountRepo,
@@ -428,19 +431,20 @@ func NewOpenAIGatewayService(
 			nil,
 			"service.openai_gateway",
 		),
-		httpUpstream:          httpUpstream,
-		deferredService:       deferredService,
-		openAITokenProvider:   openAITokenProvider,
-		grokTokenProvider:     grokTokenProvider,
-		toolCorrector:         NewCodexToolCorrector(),
-		openaiWSResolver:      NewOpenAIWSProtocolResolver(cfg),
-		resolver:              resolver,
-		channelService:        channelService,
-		balanceNotifyService:  balanceNotifyService,
-		settingService:        settingService,
-		userPlatformQuotaRepo: userPlatformQuotaRepo,
-		responseHeaderFilter:  compileResponseHeaderFilter(cfg),
-		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+		httpUpstream:            httpUpstream,
+		deferredService:         deferredService,
+		openAITokenProvider:     openAITokenProvider,
+		grokTokenProvider:       grokTokenProvider,
+		toolCorrector:           NewCodexToolCorrector(),
+		openaiWSResolver:        NewOpenAIWSProtocolResolver(cfg),
+		resolver:                resolver,
+		channelService:          channelService,
+		balanceNotifyService:    balanceNotifyService,
+		settingService:          settingService,
+		userPlatformQuotaRepo:   userPlatformQuotaRepo,
+		usageInteractionService: usageInteractionService,
+		responseHeaderFilter:    compileResponseHeaderFilter(cfg),
+		codexSnapshotThrottle:   newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
 	}
 	if rateLimitService != nil {
 		rateLimitService.SetAccountRuntimeBlocker(svc)
@@ -6261,6 +6265,7 @@ type OpenAIRecordUsageInput struct {
 	QuotaPlatform      string // user×platform quota platform resolved by the handler before async billing.
 	// CyberBlocked 为 true 时把该用量行标记为 cyber（request_type=cyber），计费逻辑不变。
 	CyberBlocked bool
+	Interaction  *UsageInteractionCapture
 	ChannelUsageFields
 }
 
@@ -6284,6 +6289,7 @@ type CyberPolicyUsageInput struct {
 	IPAddress          string
 	RequestPayloadHash string
 	APIKeyService      APIKeyQuotaUpdater
+	Interaction        *UsageInteractionCapture
 	ChannelUsageFields
 }
 
@@ -6318,6 +6324,7 @@ func (s *OpenAIGatewayService) RecordCyberPolicyUsageLog(ctx context.Context, in
 		IPAddress:          in.IPAddress,
 		RequestPayloadHash: in.RequestPayloadHash,
 		APIKeyService:      in.APIKeyService,
+		Interaction:        in.Interaction,
 		ChannelUsageFields: in.ChannelUsageFields,
 		CyberBlocked:       true,
 	}); err != nil {
@@ -6529,7 +6536,10 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
-		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
+		recordInteractions := s.usageInteractionRecordingEnabled(ctx)
+		if err := writeUsageLogWithOptionalInteraction(ctx, s.usageLogRepo, usageLog, s.usageInteractionService, input.Interaction, nil, "service.openai_gateway", recordInteractions); err != nil {
+			return err
+		}
 		logger.LegacyPrintf("service.openai_gateway", "[SIMPLE MODE] Usage recorded (not billed): user=%d, tokens=%d", usageLog.UserID, usageLog.TotalTokens())
 		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 		return nil
@@ -6561,9 +6571,24 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if billingErr != nil {
 		return billingErr
 	}
-	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
+	recordInteractions := s.usageInteractionRecordingEnabled(ctx)
+	if err := writeUsageLogWithOptionalInteraction(ctx, s.usageLogRepo, usageLog, s.usageInteractionService, input.Interaction, nil, "service.openai_gateway", recordInteractions); err != nil {
+		return err
+	}
 
 	return nil
+}
+
+func (s *OpenAIGatewayService) usageInteractionRecordingEnabled(ctx context.Context) bool {
+	if s == nil || s.usageInteractionService == nil {
+		return false
+	}
+	enabled, err := s.usageInteractionService.RecordingEnabled(ctx)
+	if err != nil {
+		logger.LegacyPrintf("service.openai_gateway", "Read usage interaction recording setting failed: %v", err)
+		return true
+	}
+	return enabled
 }
 
 func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
