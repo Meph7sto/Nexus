@@ -85,8 +85,12 @@ vi.mock('vue-i18n', async () => {
 
 vi.mock('vue-router', () => ({
  useRoute: () => ({
- query: {}
- })
+ query: {},
+ fullPath: '/admin/usage',
+ }),
+ useRouter: () => ({
+ push: vi.fn(),
+ }),
 }))
 
 const AppLayoutStub = { template: '<div><slot /></div>' }

@@ -942,6 +942,7 @@ export default {
  path: 'Path',
  inboundEndpoint: 'Inbound Endpoint',
  upstreamEndpoint: 'Upstream Endpoint',
+ interactionDetails: 'Interaction Details',
  type: 'Type',
  tokens: 'Tokens',
  cost: 'Cost',
@@ -4869,6 +4870,30 @@ export default {
  failed: 'Failed',
  canceled: 'Canceled'
  }
+ }
+ },
+
+ usageInteraction: {
+ title: 'Usage Interaction Detail',
+ description: 'Review captured request, response, routing, and raw payload details',
+ redacted: 'Redacted',
+ notFound: 'No captured interaction exists for this usage record.',
+ failedToLoad: 'Failed to load interaction details',
+ failedToLoadRaw: 'Failed to load raw interaction data',
+ tabs: {
+ input: 'Input',
+ output: 'Output',
+ parameters: 'Parameters',
+ routing: 'Routing',
+ raw: 'Raw'
+ },
+ sections: {
+ input: 'Input Content',
+ output: 'Output Content',
+ parameters: 'Request Parameters',
+ routing: 'Routing Context',
+ rawRequest: 'Raw Request',
+ rawResponse: 'Raw Response'
  }
  },
 
