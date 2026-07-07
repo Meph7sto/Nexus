@@ -309,7 +309,10 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
-		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
+		AllowUserViewErrorRequests:       settings.AllowUserViewErrorRequests,
+		UsageInteractionRecordingEnabled: settings.UsageInteractionRecordingEnabled,
+		UsageInteractionStoreRawEnabled:  settings.UsageInteractionStoreRawEnabled,
+		UsageInteractionRetentionDays:    settings.UsageInteractionRetentionDays,
 	}
 
 	// OpenAI fast policy (stored under a dedicated setting key)
@@ -687,7 +690,10 @@ type UpdateSettingsRequest struct {
 	AuthSourceGooglePlatformQuotas   map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_google_platform_quotas"`
 	AuthSourceDingTalkPlatformQuotas map[string]*service.DefaultPlatformQuotaSetting `json:"auth_source_default_dingtalk_platform_quotas"`
 
-	AllowUserViewErrorRequests *bool `json:"allow_user_view_error_requests"`
+	AllowUserViewErrorRequests       *bool `json:"allow_user_view_error_requests"`
+	UsageInteractionRecordingEnabled *bool `json:"usage_interaction_recording_enabled"`
+	UsageInteractionStoreRawEnabled  *bool `json:"usage_interaction_store_raw_enabled"`
+	UsageInteractionRetentionDays    *int  `json:"usage_interaction_retention_days"`
 }
 
 // UpdateSettings 更新系统设置
@@ -1661,6 +1667,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AllowUserViewErrorRequests
 		}(),
+		UsageInteractionRecordingEnabled: boolValueOrDefault(
+			req.UsageInteractionRecordingEnabled,
+			previousSettings.UsageInteractionRecordingEnabled,
+		),
+		UsageInteractionStoreRawEnabled: boolValueOrDefault(
+			req.UsageInteractionStoreRawEnabled,
+			previousSettings.UsageInteractionStoreRawEnabled,
+		),
+		UsageInteractionRetentionDays: intValueOrDefault(
+			req.UsageInteractionRetentionDays,
+			previousSettings.UsageInteractionRetentionDays,
+		),
 		OpsMonitoringEnabled: func() bool {
 			if req.OpsMonitoringEnabled != nil {
 				return *req.OpsMonitoringEnabled
@@ -2200,10 +2218,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
-		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
-		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,
-		CyberSessionBlockTTLSeconds: updatedSettings.CyberSessionBlockTTLSeconds,
-		AllowUserViewErrorRequests:  updatedSettings.AllowUserViewErrorRequests,
+		RiskControlEnabled:               updatedSettings.RiskControlEnabled,
+		CyberSessionBlockEnabled:         updatedSettings.CyberSessionBlockEnabled,
+		CyberSessionBlockTTLSeconds:      updatedSettings.CyberSessionBlockTTLSeconds,
+		AllowUserViewErrorRequests:       updatedSettings.AllowUserViewErrorRequests,
+		UsageInteractionRecordingEnabled: updatedSettings.UsageInteractionRecordingEnabled,
+		UsageInteractionStoreRawEnabled:  updatedSettings.UsageInteractionStoreRawEnabled,
+		UsageInteractionRetentionDays:    updatedSettings.UsageInteractionRetentionDays,
 	}
 	if fastPolicy, err := h.settingService.GetOpenAIFastPolicySettings(c.Request.Context()); err != nil {
 		slog.Error("openai_fast_policy_settings_get_failed", "error", err)

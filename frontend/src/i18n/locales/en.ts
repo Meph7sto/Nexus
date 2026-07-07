@@ -6785,6 +6785,14 @@ export default {
  title: 'Usage Records',
  description: 'Settings for usage and failed-request records visible to end users.',
  },
+ usageInteractions: {
+ recordingEnabled: 'Record interaction details',
+ recordingEnabledHint: 'When enabled, every new usage row stores full input and output details.',
+ storeRawEnabled: 'Store raw JSON',
+ storeRawEnabledHint: 'Raw request and response JSON is stored redacted and shown only after opening the Raw tab.',
+ retentionDays: 'Interaction retention days',
+ retentionDaysHint: 'Any non-negative integer. 0 keeps details indefinitely.'
+ },
  user_error_view: {
  label: 'Allow users to view their own error requests',
  description: 'When enabled, users can see a redacted view of their failed requests on the usage page (no internal/upstream details). Requires ops monitoring enabled to have data.',

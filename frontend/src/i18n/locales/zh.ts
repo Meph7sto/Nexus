@@ -6939,6 +6939,14 @@ export default {
  title: '使用记录',
  description: '与终端用户可见的用量及失败请求记录相关的设置。',
  },
+ usageInteractions: {
+ recordingEnabled: '记录交互明细',
+ recordingEnabledHint: '启用后，每条新的用量记录都会保存完整输入和输出明细。',
+ storeRawEnabled: '保存 Raw JSON',
+ storeRawEnabledHint: 'Raw 请求和响应 JSON 会脱敏保存，并且只在打开 Raw 标签页后展示。',
+ retentionDays: '交互明细保留天数',
+ retentionDaysHint: '可填写任意非负整数。0 表示永久保留。'
+ },
  user_error_view: {
  label: '允许用户查看自己的错误请求',
  description: '开启后，用户可在用量页查看自己失败请求的精简信息（不含内部/上游错误细节）。需运维监控开启才有数据。',

@@ -208,6 +208,15 @@ export function normalizeDefaultSubscriptionSettings(
  }));
 }
 
+export function normalizeUsageInteractionRetentionDays(value: unknown): number {
+ const parsed =
+ typeof value === "string" && value.trim() !== ""
+ ? Number(value)
+ : Number(value);
+ if (!Number.isFinite(parsed) || parsed < 0) return 0;
+ return Math.floor(parsed);
+}
+
 export function buildAuthSourceDefaultsState(
  settings: Partial<SystemSettings>,
 ): AuthSourceDefaultsState {
@@ -630,6 +639,9 @@ export interface SystemSettings {
 
  // Allow user view error requests
  allow_user_view_error_requests: boolean;
+ usage_interaction_recording_enabled: boolean;
+ usage_interaction_store_raw_enabled: boolean;
+ usage_interaction_retention_days: number;
 }
 
 export interface UpdateSettingsRequest {
@@ -877,6 +889,9 @@ export interface UpdateSettingsRequest {
  openai_fast_policy_settings?: OpenAIFastPolicySettings;
 
  allow_user_view_error_requests?: boolean;
+ usage_interaction_recording_enabled?: boolean;
+ usage_interaction_store_raw_enabled?: boolean;
+ usage_interaction_retention_days?: number;
 }
 
 /**
