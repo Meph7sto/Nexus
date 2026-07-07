@@ -180,6 +180,18 @@ func TestMigration158BackfillsGrokMediaGenerationGroups(t *testing.T) {
 	require.Contains(t, sql, "AND allow_image_generation = false")
 }
 
+func TestMigration160SeedsUsageInteractionSettingsWithCurrentSettingsSchema(t *testing.T) {
+	content, err := FS.ReadFile("160_add_usage_interactions.sql")
+	require.NoError(t, err)
+
+	sql := string(content)
+	require.Contains(t, sql, "INSERT INTO settings (key, value, updated_at)")
+	require.NotContains(t, sql, "INSERT INTO settings (key, value, created_at, updated_at)")
+	require.Contains(t, sql, "('usage_interaction_recording_enabled', 'false', NOW())")
+	require.Contains(t, sql, "('usage_interaction_store_raw_enabled', 'false', NOW())")
+	require.Contains(t, sql, "('usage_interaction_retention_days', '7', NOW())")
+}
+
 func TestMigration154AddsSparkShadowColumnsAndConstraintsWithoutHotIndexes(t *testing.T) {
 	content, err := FS.ReadFile("154_account_spark_shadow.sql")
 	require.NoError(t, err)
