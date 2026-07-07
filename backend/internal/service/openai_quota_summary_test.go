@@ -28,7 +28,7 @@ func TestBuildOpenAIQuotaSummary_ExcludesErrorAndInactiveButCountsThem(t *testin
 	row := out.Groups[0].Rows[0]
 	require.Equal(t, int64(10), *out.Groups[0].GroupID)
 	require.Equal(t, "OpenAI Main", out.Groups[0].GroupName)
-	require.Equal(t, AccountTypeOAuth, row.AccountType)
+	require.Equal(t, "plus", row.AccountType)
 	require.Equal(t, 2, row.IncludedCount)
 	require.Equal(t, 1, row.ErrorCount)
 	require.Equal(t, 1, row.InactiveCount)
@@ -40,7 +40,18 @@ func TestBuildOpenAIQuotaSummary_MissingSnapshotsCountAsFullQuota(t *testing.T) 
 	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
 	group := &Group{ID: 10, Name: "OpenAI Main", Platform: PlatformOpenAI}
 	withSnapshot := openAIQuotaSummaryTestAccount(1, "with", AccountTypeOAuth, StatusActive, 50, 25, now.Add(time.Hour), now.Add(24*time.Hour), group)
-	withoutSnapshot := Account{ID: 2, Name: "new", Platform: PlatformOpenAI, Type: AccountTypeOAuth, Status: StatusActive, Groups: []*Group{group}, GroupIDs: []int64{10}}
+	withoutSnapshot := Account{
+		ID:       2,
+		Name:     "new",
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeOAuth,
+		Status:   StatusActive,
+		Groups:   []*Group{group},
+		GroupIDs: []int64{10},
+		Extra: map[string]any{
+			"chatgpt_plan": "plus",
+		},
+	}
 
 	out := BuildOpenAIQuotaSummary([]Account{withSnapshot, withoutSnapshot}, OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
 
@@ -64,6 +75,7 @@ func TestBuildOpenAIQuotaSummary_PartialSnapshotsCountAsMissingAndFullQuota(t *t
 		Groups:   []*Group{group},
 		GroupIDs: []int64{10},
 		Extra: map[string]any{
+			"chatgpt_plan":          "plus",
 			"codex_5h_used_percent": 80,
 			"codex_7d_used_percent": 70,
 			"codex_7d_reset_at":     "not-rfc3339",
@@ -78,6 +90,7 @@ func TestBuildOpenAIQuotaSummary_PartialSnapshotsCountAsMissingAndFullQuota(t *t
 		Groups:   []*Group{group},
 		GroupIDs: []int64{10},
 		Extra: map[string]any{
+			"chatgpt_plan":          "plus",
 			"codex_5h_used_percent": "not-a-percent",
 			"codex_5h_reset_at":     now.Add(time.Hour).Format(time.RFC3339),
 			"codex_7d_reset_at":     now.Add(24 * time.Hour).Format(time.RFC3339),
@@ -130,7 +143,30 @@ func TestBuildOpenAIQuotaSummary_FutureProjectionResetsWindows(t *testing.T) {
 	require.InDelta(t, 20, row.Avg7DRemainingPercent, 0.001)
 	require.Nil(t, row.Earliest5HRecovery)
 	require.NotNil(t, row.Earliest7DRecovery)
-	require.Equal(t, int64(1), row.Earliest7DRecovery.AccountID)
+	require.Zero(t, row.Earliest7DRecovery.AccountID)
+	require.Empty(t, row.Earliest7DRecovery.AccountName)
+	require.InDelta(t, 20, row.Earliest7DRecovery.RemainingBeforePercent, 0.001)
+	require.InDelta(t, 100, row.Earliest7DRecovery.RemainingAfterPercent, 0.001)
+}
+
+func TestBuildOpenAIQuotaSummary_EarliestRecoveryReportsRowAverageChange(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	group := &Group{ID: 10, Name: "OpenAI Main", Platform: PlatformOpenAI}
+	accounts := []Account{
+		openAIQuotaSummaryTestAccount(1, "empty", AccountTypeOAuth, StatusActive, 100, 20, now.Add(time.Hour), now.Add(24*time.Hour), group),
+		openAIQuotaSummaryTestAccount(2, "full", AccountTypeOAuth, StatusActive, 0, 40, now.Add(2*time.Hour), now.Add(48*time.Hour), group),
+	}
+
+	out := BuildOpenAIQuotaSummary(accounts, OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
+
+	row := out.Groups[0].Rows[0]
+	require.InDelta(t, 50, row.Avg5HRemainingPercent, 0.001)
+	require.NotNil(t, row.Earliest5HRecovery)
+	require.Equal(t, now.Add(time.Hour), row.Earliest5HRecovery.ResetAt)
+	require.InDelta(t, 50, row.Earliest5HRecovery.RemainingBeforePercent, 0.001)
+	require.InDelta(t, 100, row.Earliest5HRecovery.RemainingAfterPercent, 0.001)
+	require.Zero(t, row.Earliest5HRecovery.AccountID)
+	require.Empty(t, row.Earliest5HRecovery.AccountName)
 }
 
 func TestBuildOpenAIQuotaSummary_MultiGroupAndUngroupedBuckets(t *testing.T) {
@@ -149,46 +185,78 @@ func TestBuildOpenAIQuotaSummary_MultiGroupAndUngroupedBuckets(t *testing.T) {
 	require.True(t, out.Groups[2].Ungrouped)
 }
 
-func TestBuildOpenAIQuotaSummary_GroupAndTypeFilters(t *testing.T) {
+func TestBuildOpenAIQuotaSummary_GroupAndPlanTypeFilters(t *testing.T) {
 	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
 	groupA := &Group{ID: 10, Name: "A", Platform: PlatformOpenAI}
 	groupB := &Group{ID: 11, Name: "B", Platform: PlatformOpenAI}
 	accounts := []Account{
-		openAIQuotaSummaryTestAccount(1, "a-oauth", AccountTypeOAuth, StatusActive, 10, 10, now.Add(time.Hour), now.Add(24*time.Hour), groupA),
-		openAIQuotaSummaryTestAccount(2, "b-apikey", AccountTypeAPIKey, StatusActive, 10, 10, now.Add(time.Hour), now.Add(24*time.Hour), groupB),
+		openAIQuotaSummaryTestAccountWithPlan(1, "a-plus", AccountTypeOAuth, "plus", StatusActive, 10, 10, now.Add(time.Hour), now.Add(24*time.Hour), groupA),
+		openAIQuotaSummaryTestAccountWithPlan(2, "b-pro", AccountTypeOAuth, "pro", StatusActive, 10, 10, now.Add(time.Hour), now.Add(24*time.Hour), groupB),
 	}
 	filterID := int64(10)
 
 	out := BuildOpenAIQuotaSummary(accounts, OpenAIQuotaSummaryInput{
 		ProjectionAt: now,
 		GeneratedAt:  now,
-		AccountType:  AccountTypeOAuth,
+		AccountType:  "plus",
 		GroupFilter:  &OpenAIQuotaSummaryGroupFilter{ID: &filterID},
 	})
 
 	require.Len(t, out.Groups, 1)
 	require.Equal(t, int64(10), *out.Groups[0].GroupID)
 	require.Len(t, out.Groups[0].Rows, 1)
-	require.Equal(t, AccountTypeOAuth, out.Groups[0].Rows[0].AccountType)
+	require.Equal(t, "plus", out.Groups[0].Rows[0].AccountType)
+}
+
+func TestBuildOpenAIQuotaSummary_GroupsOAuthAccountsByChatGPTPlanType(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	group := &Group{ID: 10, Name: "A", Platform: PlatformOpenAI}
+	accounts := []Account{
+		openAIQuotaSummaryTestAccountWithPlan(1, "plus-a", AccountTypeOAuth, "plus", StatusActive, 10, 10, now.Add(time.Hour), now.Add(24*time.Hour), group),
+		openAIQuotaSummaryTestAccountWithPlan(2, "pro-a", AccountTypeOAuth, "pro", StatusActive, 20, 20, now.Add(time.Hour), now.Add(24*time.Hour), group),
+	}
+
+	out := BuildOpenAIQuotaSummary(accounts, OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
+
+	require.Len(t, out.Groups, 1)
+	require.Len(t, out.Groups[0].Rows, 2)
+	require.Equal(t, "plus", out.Groups[0].Rows[0].AccountType)
+	require.Equal(t, "pro", out.Groups[0].Rows[1].AccountType)
+}
+
+func TestBuildOpenAIQuotaSummary_UsesCredentialPlanType(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+	group := &Group{ID: 10, Name: "A", Platform: PlatformOpenAI}
+	account := openAIQuotaSummaryTestAccountWithPlan(1, "pro-a", AccountTypeOAuth, "", StatusActive, 10, 10, now.Add(time.Hour), now.Add(24*time.Hour), group)
+	account.Credentials = map[string]any{"plan_type": "pro"}
+	delete(account.Extra, "chatgpt_plan")
+
+	out := BuildOpenAIQuotaSummary([]Account{account}, OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
+
+	require.Len(t, out.Groups, 1)
+	require.Len(t, out.Groups[0].Rows, 1)
+	require.Equal(t, "pro", out.Groups[0].Rows[0].AccountType)
 }
 
 func TestAdminServiceGetOpenAIQuotaSummary_LoadsAllOpenAIAccountsAcrossPages(t *testing.T) {
 	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
 	repo := &openAIQuotaSummaryPagedRepo{
 		pages: [][]Account{
-			{openAIQuotaSummaryTestAccount(1, "a", AccountTypeOAuth, StatusActive, 0, 0, now.Add(time.Hour), now.Add(24*time.Hour))},
-			{openAIQuotaSummaryTestAccount(2, "b", AccountTypeAPIKey, StatusActive, 0, 0, now.Add(time.Hour), now.Add(24*time.Hour))},
+			{openAIQuotaSummaryTestAccountWithPlan(1, "a", AccountTypeOAuth, "plus", StatusActive, 0, 0, now.Add(time.Hour), now.Add(24*time.Hour))},
+			{openAIQuotaSummaryTestAccountWithPlan(2, "b", AccountTypeOAuth, "pro", StatusActive, 0, 0, now.Add(time.Hour), now.Add(24*time.Hour))},
 		},
 	}
 	svc := &adminServiceImpl{accountRepo: repo}
 
-	out, err := svc.GetOpenAIQuotaSummary(context.Background(), OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now})
+	out, err := svc.GetOpenAIQuotaSummary(context.Background(), OpenAIQuotaSummaryInput{ProjectionAt: now, GeneratedAt: now, AccountType: "plus"})
 
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	require.Len(t, out.Groups, 1)
-	require.Len(t, out.Groups[0].Rows, 2)
+	require.Len(t, out.Groups[0].Rows, 1)
+	require.Equal(t, "plus", out.Groups[0].Rows[0].AccountType)
 	require.Equal(t, []string{"openai", "openai"}, repo.platforms)
+	require.Equal(t, []string{"", ""}, repo.accountTypes)
 	require.Equal(t, []int{1, 2}, repo.pagesRequested)
 }
 
@@ -197,11 +265,13 @@ type openAIQuotaSummaryPagedRepo struct {
 
 	pages          [][]Account
 	platforms      []string
+	accountTypes   []string
 	pagesRequested []int
 }
 
 func (r *openAIQuotaSummaryPagedRepo) ListWithFilters(_ context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, *pagination.PaginationResult, error) {
 	r.platforms = append(r.platforms, platform)
+	r.accountTypes = append(r.accountTypes, accountType)
 	r.pagesRequested = append(r.pagesRequested, params.Page)
 
 	pageIndex := params.Page - 1
@@ -212,6 +282,10 @@ func (r *openAIQuotaSummaryPagedRepo) ListWithFilters(_ context.Context, params 
 }
 
 func openAIQuotaSummaryTestAccount(id int64, name, accountType, status string, used5h, used7d float64, reset5h, reset7d time.Time, groups ...*Group) Account {
+	return openAIQuotaSummaryTestAccountWithPlan(id, name, accountType, "plus", status, used5h, used7d, reset5h, reset7d, groups...)
+}
+
+func openAIQuotaSummaryTestAccountWithPlan(id int64, name, accountType, planType, status string, used5h, used7d float64, reset5h, reset7d time.Time, groups ...*Group) Account {
 	groupIDs := make([]int64, 0, len(groups))
 	for _, group := range groups {
 		groupIDs = append(groupIDs, group.ID)
@@ -225,6 +299,7 @@ func openAIQuotaSummaryTestAccount(id int64, name, accountType, status string, u
 		Groups:   groups,
 		GroupIDs: groupIDs,
 		Extra: map[string]any{
+			"chatgpt_plan":          planType,
 			"codex_5h_used_percent": used5h,
 			"codex_5h_reset_at":     reset5h.Format(time.RFC3339),
 			"codex_7d_used_percent": used7d,

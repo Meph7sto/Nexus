@@ -28,9 +28,9 @@
             class="input w-40"
           >
             <option value="">{{ t('admin.openAIQuotaSummary.allTypes') }}</option>
-            <option value="oauth">{{ accountTypeLabel('oauth') }}</option>
-            <option value="setup-token">{{ accountTypeLabel('setup-token') }}</option>
-            <option value="apikey">{{ accountTypeLabel('apikey') }}</option>
+            <option v-for="type in typeOptions" :key="type" :value="type">
+              {{ planTypeLabel(type) }}
+            </option>
           </select>
           <div class="inline-flex overflow-hidden rounded-md border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
             <button
@@ -150,7 +150,7 @@
                 :key="`${group.group_id ?? 'ungrouped'}-${row.account_type}`"
                 class="hover:bg-gray-50 dark:hover:bg-dark-700/40"
               >
-                <td class="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{{ accountTypeLabel(row.account_type) }}</td>
+                <td class="whitespace-nowrap px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{{ planTypeLabel(row.account_type) }}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{{ row.included_count }}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{{ row.error_count }}</td>
                 <td class="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{{ row.inactive_count }}</td>
@@ -181,11 +181,11 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import { accountsAPI } from '@/api/admin/accounts'
 import { groupsAPI } from '@/api/admin/groups'
 import type { OpenAIQuotaRecovery, OpenAIQuotaSummaryParams, OpenAIQuotaSummaryResponse } from '@/api/admin/accounts'
-import type { AccountType, AdminGroup } from '@/types'
+import type { AdminGroup } from '@/types'
 import { useAppStore } from '@/stores/app'
 
 type ProjectionMode = 'current' | 'hours' | 'days'
-type OpenAIQuotaSummaryTypeFilter = '' | Extract<AccountType, 'oauth' | 'setup-token' | 'apikey'>
+type OpenAIQuotaSummaryTypeFilter = string
 interface GroupFilterOption {
  id: number
  name: string
@@ -204,6 +204,7 @@ const loading = ref(true)
 
 const activeModeClass = 'bg-primary-600 text-white'
 const inactiveModeClass = 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-dark-700'
+const commonPlanTypes = ['free', 'plus', 'pro', 'team', 'enterprise', 'unknown']
 
 const groupOptions = computed<GroupFilterOption[]>(() => {
  const options: GroupFilterOption[] = []
@@ -224,6 +225,23 @@ const groupOptions = computed<GroupFilterOption[]>(() => {
  return options
 })
 
+const typeOptions = computed<string[]>(() => {
+ const options = new Set<string>()
+ for (const type of commonPlanTypes) {
+  options.add(type)
+ }
+ if (selectedType.value) {
+  options.add(selectedType.value)
+ }
+ for (const group of summary.value?.groups ?? []) {
+  for (const row of group.rows) {
+   const type = row.account_type.trim()
+   if (type) options.add(type)
+  }
+ }
+ return Array.from(options).sort((a, b) => planTypeLabel(a).localeCompare(planTypeLabel(b)))
+})
+
 function formatPercent(value: number | null | undefined): string {
  if (value == null || Number.isNaN(value)) return '-'
  return `${value.toFixed(1)}%`
@@ -236,13 +254,15 @@ function formatDateTime(value: string | null | undefined): string {
  return date.toLocaleString()
 }
 
-function accountTypeLabel(type: string): string {
- const labels: Record<string, string> = {
-  oauth: t('admin.accounts.oauthType'),
-  'setup-token': t('admin.accounts.setupToken'),
-  apikey: t('admin.accounts.apiKey'),
- }
- return labels[type] ?? type
+function planTypeLabel(type: string): string {
+ const normalized = type.trim()
+ if (!normalized) return '-'
+ if (normalized.toLowerCase() === 'unknown') return 'Unknown'
+ return normalized
+  .split(/[-_\s]+/)
+  .filter(Boolean)
+  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ')
 }
 
 function projectionParams(): OpenAIQuotaSummaryParams {
@@ -300,11 +320,7 @@ const RecoveryCell = defineComponent({
    }
 
    return h('div', { class: 'space-y-0.5' }, [
-    h('div', { class: 'font-medium text-gray-900 dark:text-gray-100' }, [
-     props.recovery.account_name,
-     h('span', { class: 'ml-1 text-xs font-normal text-gray-500 dark:text-gray-400' }, `#${props.recovery.account_id}`),
-    ]),
-    h('div', { class: 'text-xs text-gray-500 dark:text-gray-400' }, formatDateTime(props.recovery.reset_at)),
+    h('div', { class: 'font-medium text-gray-900 dark:text-gray-100' }, formatDateTime(props.recovery.reset_at)),
     h('div', { class: 'text-xs text-gray-500 dark:text-gray-400' }, `${formatPercent(props.recovery.remaining_before_percent)} -> ${formatPercent(props.recovery.remaining_after_percent)}`),
    ])
   }

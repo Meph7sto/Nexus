@@ -26,12 +26,12 @@ func TestOpenAIOAuthHandlerQuotaSummary_ParsesProjectionGroupAndType(t *testing.
 	router := gin.New()
 	router.GET("/api/v1/admin/openai/quota-summary", h.QuotaSummary)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/openai/quota-summary?projection_at=2026-07-06T15:00:00Z&group=12&type=oauth", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/openai/quota-summary?projection_at=2026-07-06T15:00:00Z&group=12&type=plus", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Equal(t, service.AccountTypeOAuth, adminSvc.lastOpenAIQuotaSummaryInput.AccountType)
+	require.Equal(t, "plus", adminSvc.lastOpenAIQuotaSummaryInput.AccountType)
 	require.NotNil(t, adminSvc.lastOpenAIQuotaSummaryInput.GroupFilter)
 	require.NotNil(t, adminSvc.lastOpenAIQuotaSummaryInput.GroupFilter.ID)
 	require.Equal(t, int64(12), *adminSvc.lastOpenAIQuotaSummaryInput.GroupFilter.ID)

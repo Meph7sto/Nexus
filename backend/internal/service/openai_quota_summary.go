@@ -10,6 +10,27 @@ import (
 )
 
 const StatusInactive = "inactive"
+const openAIQuotaSummaryUnknownPlanType = "unknown"
+
+var openAIQuotaSummaryPlanTypeExtraKeys = []string{
+	"chatgpt_plan",
+	"plan",
+	"account_plan",
+	"subscription_plan",
+	"subscription_tier",
+	"tier",
+	"quota_tier",
+	"workspace_plan",
+	"codex_plan",
+}
+
+var openAIQuotaSummaryPlanTypeCredentialKeys = []string{
+	"plan_type",
+	"chatgpt_plan",
+	"subscription_plan",
+	"subscription_tier",
+	"tier",
+}
 
 type OpenAIQuotaSummaryInput struct {
 	ProjectionAt time.Time
@@ -67,9 +88,17 @@ type openAIQuotaSummaryGroupBucket struct {
 }
 
 type openAIQuotaSummaryRowBucket struct {
-	row   OpenAIQuotaSummaryRow
-	sum5h float64
-	sum7d float64
+	row       OpenAIQuotaSummaryRow
+	sum5h     float64
+	sum7d     float64
+	windows5h []openAIQuotaSummaryWindowSnapshot
+	windows7d []openAIQuotaSummaryWindowSnapshot
+}
+
+type openAIQuotaSummaryWindowSnapshot struct {
+	resetAt   time.Time
+	remaining float64
+	missing   bool
 }
 
 type openAIQuotaSummaryGroupMembership struct {
@@ -82,13 +111,14 @@ func BuildOpenAIQuotaSummary(accounts []Account, input OpenAIQuotaSummaryInput) 
 	groups := make(map[string]*openAIQuotaSummaryGroupBucket)
 	for i := range accounts {
 		account := &accounts[i]
-		if account.Platform != PlatformOpenAI || !matchesOpenAIQuotaAccountType(account, input.AccountType) {
+		planType := openAIQuotaSummaryPlanType(account)
+		if account.Platform != PlatformOpenAI || !matchesOpenAIQuotaPlanType(planType, input.AccountType) {
 			continue
 		}
 
 		for _, membership := range openAIQuotaSummaryMemberships(account, input.GroupFilter) {
 			groupBucket := getOpenAIQuotaSummaryGroupBucket(groups, membership)
-			rowBucket := getOpenAIQuotaSummaryRowBucket(groupBucket, account.Type)
+			rowBucket := getOpenAIQuotaSummaryRowBucket(groupBucket, planType)
 			addOpenAIQuotaSummaryAccount(rowBucket, account, input.ProjectionAt)
 		}
 	}
@@ -110,6 +140,8 @@ func BuildOpenAIQuotaSummary(accounts []Account, input OpenAIQuotaSummaryInput) 
 			if row.IncludedCount > 0 {
 				row.Avg5HRemainingPercent = rowBucket.sum5h / float64(row.IncludedCount)
 				row.Avg7DRemainingPercent = rowBucket.sum7d / float64(row.IncludedCount)
+				row.Earliest5HRecovery = openAIQuotaSummaryAggregateRecovery(rowBucket.windows5h, row.Avg5HRemainingPercent, row.IncludedCount, input.ProjectionAt)
+				row.Earliest7DRecovery = openAIQuotaSummaryAggregateRecovery(rowBucket.windows7d, row.Avg7DRemainingPercent, row.IncludedCount, input.ProjectionAt)
 			}
 			group.Rows = append(group.Rows, row)
 		}
@@ -131,9 +163,48 @@ func BuildOpenAIQuotaSummary(accounts []Account, input OpenAIQuotaSummaryInput) 
 	return out
 }
 
-func matchesOpenAIQuotaAccountType(account *Account, filter string) bool {
+func matchesOpenAIQuotaPlanType(planType, filter string) bool {
 	filter = strings.TrimSpace(filter)
-	return filter == "" || account.Type == filter
+	return filter == "" || strings.EqualFold(planType, filter)
+}
+
+func openAIQuotaSummaryPlanType(account *Account) string {
+	if account == nil {
+		return openAIQuotaSummaryUnknownPlanType
+	}
+	for _, key := range openAIQuotaSummaryPlanTypeCredentialKeys {
+		if planType := normalizeOpenAIQuotaSummaryPlanType(openAIQuotaSummaryMapString(account.Credentials, key)); planType != "" {
+			return planType
+		}
+	}
+	for _, key := range openAIQuotaSummaryPlanTypeExtraKeys {
+		if planType := normalizeOpenAIQuotaSummaryPlanType(account.getExtraString(key)); planType != "" {
+			return planType
+		}
+	}
+	return openAIQuotaSummaryUnknownPlanType
+}
+
+func normalizeOpenAIQuotaSummaryPlanType(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.TrimPrefix(value, "chatgpt ")
+	value = strings.TrimPrefix(value, "chatgpt-")
+	value = strings.TrimPrefix(value, "chatgpt_")
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	return strings.ReplaceAll(value, " ", "-")
+}
+
+func openAIQuotaSummaryMapString(values map[string]any, key string) string {
+	if values == nil {
+		return ""
+	}
+	if value, ok := values[key].(string); ok {
+		return value
+	}
+	return ""
 }
 
 func openAIQuotaSummaryMemberships(account *Account, filter *OpenAIQuotaSummaryGroupFilter) []openAIQuotaSummaryGroupMembership {
@@ -228,13 +299,16 @@ func addOpenAIQuotaSummaryAccount(bucket *openAIQuotaSummaryRowBucket, account *
 	}
 	bucket.sum5h += remaining5h
 	bucket.sum7d += remaining7d
-
-	if recovery := openAIQuotaSummaryRecovery(account, "codex_5h_reset_at", remaining5h, missing5h, projectionAt); recovery != nil {
-		bucket.row.Earliest5HRecovery = earlierOpenAIQuotaRecovery(bucket.row.Earliest5HRecovery, recovery)
-	}
-	if recovery := openAIQuotaSummaryRecovery(account, "codex_7d_reset_at", remaining7d, missing7d, projectionAt); recovery != nil {
-		bucket.row.Earliest7DRecovery = earlierOpenAIQuotaRecovery(bucket.row.Earliest7DRecovery, recovery)
-	}
+	bucket.windows5h = append(bucket.windows5h, openAIQuotaSummaryWindowSnapshot{
+		resetAt:   account.getExtraTime("codex_5h_reset_at"),
+		remaining: remaining5h,
+		missing:   missing5h,
+	})
+	bucket.windows7d = append(bucket.windows7d, openAIQuotaSummaryWindowSnapshot{
+		resetAt:   account.getExtraTime("codex_7d_reset_at"),
+		remaining: remaining7d,
+		missing:   missing7d,
+	})
 }
 
 func openAIQuotaSummaryRemaining(account *Account, usedKey, resetKey string, projectionAt time.Time) (float64, bool) {
@@ -259,29 +333,38 @@ func openAIQuotaSummaryRemaining(account *Account, usedKey, resetKey string, pro
 	return 100 - clampPercent(usedPercent), false
 }
 
-func openAIQuotaSummaryRecovery(account *Account, resetKey string, remaining float64, missing bool, projectionAt time.Time) *OpenAIQuotaRecovery {
-	if missing || remaining >= 100 {
+func openAIQuotaSummaryAggregateRecovery(windows []openAIQuotaSummaryWindowSnapshot, currentAverage float64, includedCount int, projectionAt time.Time) *OpenAIQuotaRecovery {
+	if includedCount <= 0 {
 		return nil
 	}
-	resetAt := account.getExtraTime(resetKey)
-	if resetAt.IsZero() || !resetAt.After(projectionAt) {
-		return nil
-	}
-	return &OpenAIQuotaRecovery{
-		AccountID:              account.ID,
-		AccountName:            account.Name,
-		AccountType:            account.Type,
-		ResetAt:                resetAt,
-		RemainingBeforePercent: remaining,
-		RemainingAfterPercent:  100,
-	}
-}
 
-func earlierOpenAIQuotaRecovery(current, candidate *OpenAIQuotaRecovery) *OpenAIQuotaRecovery {
-	if current == nil || candidate.ResetAt.Before(current.ResetAt) {
-		return candidate
+	var earliest time.Time
+	for _, window := range windows {
+		if window.missing || window.remaining >= 100 || window.resetAt.IsZero() || !window.resetAt.After(projectionAt) {
+			continue
+		}
+		if earliest.IsZero() || window.resetAt.Before(earliest) {
+			earliest = window.resetAt
+		}
 	}
-	return current
+	if earliest.IsZero() {
+		return nil
+	}
+
+	afterSum := 0.0
+	for _, window := range windows {
+		remaining := window.remaining
+		if !window.missing && !window.resetAt.IsZero() && !window.resetAt.After(earliest) {
+			remaining = 100
+		}
+		afterSum += remaining
+	}
+
+	return &OpenAIQuotaRecovery{
+		ResetAt:                earliest,
+		RemainingBeforePercent: currentAverage,
+		RemainingAfterPercent:  afterSum / float64(includedCount),
+	}
 }
 
 func parseOpenAIQuotaSummaryUsedPercent(value any) (float64, bool) {

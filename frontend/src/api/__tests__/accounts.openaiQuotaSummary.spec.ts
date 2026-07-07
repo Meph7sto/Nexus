@@ -17,14 +17,14 @@ describe('admin accounts OpenAI quota summary API', () => {
  await getOpenAIQuotaSummary({
  projection_at: '2026-07-06T15:00:00Z',
  group: 'ungrouped',
- type: 'oauth'
+ type: 'plus'
  })
 
  expect(apiClient.get).toHaveBeenCalledWith('/admin/openai/quota-summary', {
  params: {
  projection_at: '2026-07-06T15:00:00Z',
  group: 'ungrouped',
- type: 'oauth'
+ type: 'plus'
  }
  })
  })

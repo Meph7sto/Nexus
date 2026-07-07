@@ -2769,7 +2769,7 @@ func (s *adminServiceImpl) GetOpenAIQuotaSummary(ctx context.Context, input Open
 			SortBy:    "id",
 			SortOrder: pagination.SortOrderAsc,
 		}
-		batch, pag, err := s.accountRepo.ListWithFilters(ctx, params, PlatformOpenAI, input.AccountType, "", "", groupID, "")
+		batch, pag, err := s.accountRepo.ListWithFilters(ctx, params, PlatformOpenAI, "", "", "", groupID, "")
 		if err != nil {
 			return nil, err
 		}

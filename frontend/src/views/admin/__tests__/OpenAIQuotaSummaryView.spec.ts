@@ -43,7 +43,7 @@ const response = {
    ungrouped: false,
    rows: [
     {
-     account_type: 'oauth',
+     account_type: 'plus',
      included_count: 10,
      error_count: 1,
      inactive_count: 2,
@@ -55,9 +55,9 @@ const response = {
      earliest_5h_recovery: {
       account_id: 42,
       account_name: 'openai-01',
-      account_type: 'oauth',
+      account_type: 'plus',
       reset_at: '2026-07-06T16:30:00Z',
-      remaining_before_percent: 0,
+      remaining_before_percent: 90,
       remaining_after_percent: 100
      },
      earliest_7d_recovery: null
@@ -185,11 +185,12 @@ describe('OpenAIQuotaSummaryView', () => {
 
   expect(accountsAPI.getOpenAIQuotaSummary).toHaveBeenCalledWith({})
   expect(wrapper.text()).toContain('OpenAI Main')
-  expect(wrapper.find('tbody td').text()).toBe('admin.accounts.oauthType')
+  expect(wrapper.find('tbody td').text()).toBe('Plus')
   expect(wrapper.text()).toContain('90.0%')
   expect(wrapper.text()).toContain('84.5%')
-  expect(wrapper.text()).toContain('openai-01')
-  expect(wrapper.text()).toContain('#42')
+  expect(wrapper.text()).toContain('90.0% -> 100.0%')
+  expect(wrapper.text()).not.toContain('#42')
+  expect(wrapper.text()).not.toContain('openai-01')
  })
 
  it('sends a future projection when hours mode is applied', async () => {
@@ -212,20 +213,20 @@ describe('OpenAIQuotaSummaryView', () => {
   }
  })
 
- it('sends selected group and account type filters when refreshed', async () => {
+ it('sends selected group and plan type filters when refreshed', async () => {
   const wrapper = mount(OpenAIQuotaSummaryView)
   await flushPromises()
 
   expect(groupsAPI.getAllIncludingInactive).toHaveBeenCalledWith()
 
   await wrapper.get('[data-test="group-filter"]').setValue('12')
-  await wrapper.get('[data-test="type-filter"]').setValue('oauth')
+  await wrapper.get('[data-test="type-filter"]').setValue('plus')
   await wrapper.get('[data-test="refresh"]').trigger('click')
   await flushPromises()
 
   expect(accountsAPI.getOpenAIQuotaSummary).toHaveBeenLastCalledWith({
    group: '12',
-   type: 'oauth'
+   type: 'plus'
   })
  })
 
