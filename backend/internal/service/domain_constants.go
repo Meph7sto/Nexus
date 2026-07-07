@@ -510,3 +510,9 @@ const AdminAPIKeyPrefix = "admin-"
 // SettingKeyAllowUserViewErrorRequests controls whether end users can view
 // their own failed requests on the usage page. Default false (opt-in).
 const SettingKeyAllowUserViewErrorRequests = "allow_user_view_error_requests"
+
+const (
+	SettingKeyUsageInteractionRecordingEnabled = "usage_interaction_recording_enabled"
+	SettingKeyUsageInteractionStoreRawEnabled  = "usage_interaction_store_raw_enabled"
+	SettingKeyUsageInteractionRetentionDays    = "usage_interaction_retention_days"
+)
