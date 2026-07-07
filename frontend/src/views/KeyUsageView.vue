@@ -553,7 +553,7 @@ function scheduleRingTimeout(callback: () => void, delay: number) {
  ringAnimationTimeouts.push(timeoutId)
 }
 
-function scheduleRingFrame(callback: FrameRequestCallback) {
+function scheduleRingFrame(callback: (time: number) => void) {
  if (typeof requestAnimationFrame !== 'function') {
  scheduleRingTimeout(() => callback(performance.now()), 16)
  return
