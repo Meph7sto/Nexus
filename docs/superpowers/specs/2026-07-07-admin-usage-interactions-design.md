@@ -12,6 +12,7 @@ In scope:
 
 - A new persistent store for successful request interaction details.
 - A default-off setting that administrators must enable before new interactions are recorded.
+- Once enabled, every new row that appears in `admin/usage` must have a corresponding `usage_interactions` record.
 - Full input/prompt and full output preservation without summarization or truncation.
 - Optional raw request/response JSON storage and viewing.
 - Credential redaction for secrets such as authorization headers, cookies, API keys, and upstream tokens.
@@ -41,6 +42,8 @@ Core fields:
 - `account_id`
 - `group_id`, nullable
 - `created_at`
+- `capture_status`: `complete`, `partial`, or `failed`.
+- `capture_error`, nullable, for internal diagnostics when a row exists but full content capture failed.
 
 Interaction content fields:
 
@@ -84,7 +87,15 @@ Raw behavior:
 
 ## Capture Flow
 
-Capture should happen only after a successful request produces a usage log. The interaction row must be linked to the persisted `usage_logs.id`.
+Capture should happen for every successful request that produces a usage log while interaction recording is enabled. The interaction row must be linked to the persisted `usage_logs.id`.
+
+Coverage invariant:
+
+- When `usage_interaction_recording_enabled` is true, every new `usage_logs` row that can appear in `admin/usage` must receive one corresponding `usage_interactions` row.
+- This applies to sync, streaming, WebSocket/realtime, image, tool-call, multimodal, and any other successful request type that writes `usage_logs`.
+- If full content capture fails after a usage log is created, the system should still create the `usage_interactions` row with `capture_status = "failed"` or `"partial"` and a diagnostic `capture_error`. The admin detail UI must then show that the record exists but capture failed, instead of pretending no detail record should exist.
+- A missing interaction row for an enabled-period usage row is a bug, not an acceptable empty state.
+- Historical rows from before the feature was enabled, and rows created while recording is disabled, are the only expected cases where no interaction row exists.
 
 For synchronous responses:
 
@@ -104,7 +115,7 @@ For WebSocket or realtime style requests:
 - Capture the initial session/request payload and aggregate assistant output events when a usage log is generated.
 - Store event-derived input/output in a structured form that the UI can render as turns or sections.
 
-The write path should be best effort. Failure to store interaction details must not fail the user request, double-charge, or block usage log creation. It should log an operational warning with request ID and usage log ID.
+The write path must prioritize coverage. Failure to capture full content must not fail the user request, double-charge, or block usage log creation, but it must still produce a linked interaction row with failed or partial status whenever the usage log was created. A persistence failure that prevents the placeholder row should log an operational error with request ID and usage log ID and should be visible in diagnostics because it violates the coverage invariant.
 
 ## Redaction
 
@@ -160,8 +171,9 @@ For missing details:
 
 Possible missing reasons:
 
-- `not_recorded`: feature was disabled, row is historical, or capture was unavailable.
+- `not_recorded`: feature was disabled or the row is historical.
 - `cleaned_up`: detail existed but retention cleanup removed it.
+- `missing_unexpected`: recording appears to have been enabled for the row time window but no interaction row exists.
 
 Raw fields may be omitted unless the caller asks for raw explicitly with `include_raw=true`. The UI should first load the readable details, then request raw only when the administrator opens the raw tab. This keeps accidental exposure and payload size lower.
 
@@ -190,6 +202,8 @@ Default tab is Input. Raw is not loaded or displayed until selected. The raw tab
 Display rules:
 
 - If no detail exists, show a concise empty state explaining that details were not recorded or have been cleaned up.
+- If a detail row exists with `capture_status = "partial"` or `"failed"`, show the status and diagnostic message instead of the normal input/output panels.
+- If no detail exists for a row that should have been captured, show an explicit unexpected-missing state.
 - Preserve whitespace for text content.
 - Render message arrays as readable role/content blocks.
 - Render structured tool calls, image metadata, or multimodal parts as expandable JSON sections.
@@ -210,11 +224,14 @@ Rules:
 Backend tests:
 
 - Default settings do not create interaction rows.
-- Enabled recording creates a row linked to the correct usage log.
+- Enabled recording creates a row linked to every new usage log that appears in `admin/usage`.
+- Sync, streaming, WebSocket/realtime, image, tool-call, and multimodal success paths either create complete rows or explicit partial/failed rows.
+- Capture failure after usage log creation creates a linked partial/failed interaction row instead of leaving no row.
 - Full input and output are preserved without summarization or truncation.
 - Raw fields are stored only when raw storage is enabled.
 - Credential fields are redacted before persistence.
 - Missing interaction endpoint returns `exists: false`.
+- Unexpected missing interaction rows are distinguishable from historical or disabled-period rows.
 - `include_raw=false` or absent does not return raw fields.
 - `include_raw=true` returns raw fields for authorized admin callers.
 - Retention cleanup deletes rows older than the configured arbitrary day count and skips when set to `0`.
