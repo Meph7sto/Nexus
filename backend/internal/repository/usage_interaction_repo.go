@@ -88,22 +88,7 @@ func createUsageInteraction(ctx context.Context, sqlq sqlExecutor, input service
 			$11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb,
 			$15, $16::jsonb, COALESCE($17, NOW())
 		)
-		ON CONFLICT (usage_log_id) DO UPDATE SET
-			request_id = EXCLUDED.request_id,
-			user_id = EXCLUDED.user_id,
-			api_key_id = EXCLUDED.api_key_id,
-			account_id = EXCLUDED.account_id,
-			group_id = EXCLUDED.group_id,
-			capture_status = EXCLUDED.capture_status,
-			capture_error = EXCLUDED.capture_error,
-			request_content = EXCLUDED.request_content,
-			response_content = EXCLUDED.response_content,
-			request_parameters = EXCLUDED.request_parameters,
-			routing_context = EXCLUDED.routing_context,
-			raw_request_json = EXCLUDED.raw_request_json,
-			raw_response_json = EXCLUDED.raw_response_json,
-			redaction_applied = EXCLUDED.redaction_applied,
-			redaction_keys = EXCLUDED.redaction_keys
+		ON CONFLICT (usage_log_id) DO NOTHING
 	`, input.UsageLogID, input.RequestID, input.UserID, input.APIKeyID, input.AccountID, input.GroupID,
 		status, input.CaptureError, requestContent, responseContent, requestParameters, routingContext,
 		rawRequestJSON, rawResponseJSON, redactionApplied, string(redactionKeysJSON), createdAt)

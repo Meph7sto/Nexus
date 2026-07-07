@@ -83,6 +83,72 @@ func TestRedactUsageInteractionPayload_PreservesCredentialKeysWithRedactedValues
 	}
 }
 
+func TestJSONMapFromRawForUsageInteraction_WrapsRootArraysForStructuredRedaction(t *testing.T) {
+	raw := []byte(`[{"api_key":"raw-secret","message":"keep"}]`)
+
+	payload := JSONMapFromRawForUsageInteraction(raw)
+	redacted, keys, changed := RedactUsageInteractionPayload(payload)
+
+	if !changed {
+		t.Fatal("expected root array credential fields to be redacted")
+	}
+	if !containsString(keys, "api_key") {
+		t.Fatalf("redaction keys = %v, want api_key", keys)
+	}
+	blob, _ := json.Marshal(redacted)
+	text := string(blob)
+	if !containsAll(text, `"raw_json"`, `"message":"keep"`, `"api_key":"[REDACTED]"`) {
+		t.Fatalf("unexpected redacted root array payload: %s", text)
+	}
+	if strings.Contains(text, "raw-secret") || strings.Contains(text, "raw_text") {
+		t.Fatalf("root array payload was not structurally redacted: %s", text)
+	}
+}
+
+func TestUsageInteractionInputFromUsageLog_PopulatesRoutingContextFromUsageLog(t *testing.T) {
+	groupID := int64(12)
+	channelID := int64(34)
+	upstreamModel := "claude-sonnet-upstream"
+	mappingChain := "claude-sonnet->claude-sonnet-upstream"
+	inboundEndpoint := "/v1/messages"
+	upstreamEndpoint := "/v1/chat/completions"
+
+	input := usageInteractionInputFromUsageLog(&UsageLog{
+		ID:                99,
+		RequestID:         "req-routing",
+		UserID:            101,
+		APIKeyID:          202,
+		AccountID:         303,
+		GroupID:           &groupID,
+		ChannelID:         &channelID,
+		Model:             "claude-sonnet-mapped",
+		RequestedModel:    "claude-sonnet",
+		UpstreamModel:     &upstreamModel,
+		ModelMappingChain: &mappingChain,
+		InboundEndpoint:   &inboundEndpoint,
+		UpstreamEndpoint:  &upstreamEndpoint,
+	}, &UsageInteractionCapture{
+		RoutingContext: map[string]any{"capture": "normal"},
+	})
+
+	got := input.RoutingContext
+	if got["capture"] != "normal" {
+		t.Fatalf("capture routing context was not preserved: %#v", got)
+	}
+	if got["inbound_endpoint"] != inboundEndpoint || got["upstream_endpoint"] != upstreamEndpoint {
+		t.Fatalf("routing endpoints = %#v", got)
+	}
+	if got["requested_model"] != "claude-sonnet" || got["mapped_model"] != "claude-sonnet-mapped" || got["upstream_model"] != upstreamModel {
+		t.Fatalf("routing models = %#v", got)
+	}
+	if got["account_id"] != int64(303) || got["api_key_id"] != int64(202) || got["user_id"] != int64(101) {
+		t.Fatalf("routing identifiers = %#v", got)
+	}
+	if got["group_id"] != groupID || got["channel_id"] != channelID || got["model_mapping_chain"] != mappingChain {
+		t.Fatalf("routing channel context = %#v", got)
+	}
+}
+
 func containsAll(s string, values ...string) bool {
 	for _, value := range values {
 		if !strings.Contains(s, value) {

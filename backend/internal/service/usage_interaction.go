@@ -153,11 +153,14 @@ func jsonMapFromRaw(raw []byte) map[string]any {
 	if len(raw) == 0 {
 		return map[string]any{}
 	}
-	var out map[string]any
+	var out any
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return map[string]any{"raw_text": string(raw)}
 	}
-	return out
+	if object, ok := out.(map[string]any); ok {
+		return object
+	}
+	return map[string]any{"raw_json": out}
 }
 
 func JSONMapFromRawForUsageInteraction(raw []byte) map[string]any {
@@ -202,16 +205,75 @@ func usageInteractionInputFromUsageLog(usageLog *UsageLog, capture *UsageInterac
 		input.AccountID = usageLog.AccountID
 		input.GroupID = usageLog.GroupID
 		input.CreatedAt = usageLog.CreatedAt
+		input.RoutingContext = usageInteractionRoutingContextFromUsageLog(usageLog)
 	}
 	if capture != nil {
 		input.RequestContent = capture.RequestContent
 		input.ResponseContent = capture.ResponseContent
 		input.RequestParameters = capture.RequestParameters
-		input.RoutingContext = capture.RoutingContext
+		if input.RoutingContext == nil {
+			input.RoutingContext = map[string]any{}
+		}
+		for key, value := range capture.RoutingContext {
+			input.RoutingContext[key] = value
+		}
 		input.RawRequestJSON = capture.RawRequestJSON
 		input.RawResponseJSON = capture.RawResponseJSON
 	}
 	return input
+}
+
+func usageInteractionRoutingContextFromUsageLog(usageLog *UsageLog) map[string]any {
+	if usageLog == nil {
+		return map[string]any{}
+	}
+	routing := map[string]any{}
+	addString := func(key string, value string) {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			routing[key] = trimmed
+		}
+	}
+	addStringPtr := func(key string, value *string) {
+		if value != nil {
+			addString(key, *value)
+		}
+	}
+	if usageLog.UserID > 0 {
+		routing["user_id"] = usageLog.UserID
+	}
+	if usageLog.APIKeyID > 0 {
+		routing["api_key_id"] = usageLog.APIKeyID
+	}
+	if usageLog.AccountID > 0 {
+		routing["account_id"] = usageLog.AccountID
+	}
+	if usageLog.GroupID != nil {
+		routing["group_id"] = *usageLog.GroupID
+	}
+	if usageLog.ChannelID != nil {
+		routing["channel_id"] = *usageLog.ChannelID
+	}
+	addStringPtr("inbound_endpoint", usageLog.InboundEndpoint)
+	addStringPtr("upstream_endpoint", usageLog.UpstreamEndpoint)
+	requestedModel := usageLog.RequestedModel
+	if strings.TrimSpace(requestedModel) == "" {
+		requestedModel = usageLog.Model
+	}
+	addString("requested_model", requestedModel)
+	addString("mapped_model", usageLog.Model)
+	if usageLog.UpstreamModel != nil {
+		addString("upstream_model", *usageLog.UpstreamModel)
+	} else {
+		addString("upstream_model", usageLog.Model)
+	}
+	addStringPtr("model_mapping_chain", usageLog.ModelMappingChain)
+	if requestType := usageLog.EffectiveRequestType().String(); requestType != RequestTypeUnknown.String() {
+		routing["request_type"] = requestType
+	}
+	if usageLog.Stream {
+		routing["stream"] = true
+	}
+	return routing
 }
 
 func (s *UsageInteractionService) RecordForUsageLog(ctx context.Context, usageLog *UsageLog, capture *UsageInteractionCapture, captureErr error) error {

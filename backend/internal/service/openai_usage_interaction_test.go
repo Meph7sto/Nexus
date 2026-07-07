@@ -161,3 +161,38 @@ func TestOpenAIRecordUsage_ReturnsErrorWhenInteractionCreateFails(t *testing.T) 
 		t.Fatalf("must not delete billed usage log outside an atomic repository transaction, deleted id=%d", usageRepo.deleteID)
 	}
 }
+
+func TestOpenAIRecordUsage_SettingsReadFailureWritesUsageWithoutInteraction(t *testing.T) {
+	usageRepo := &usageInteractionUsageLogRepoStub{nextID: 801}
+	spy := &usageInteractionRepoSpy{}
+	settings := &usageInteractionServiceSettingRepoStub{err: errors.New("settings unavailable")}
+	svc := newOpenAIUsageInteractionServiceForTest(usageRepo, NewUsageInteractionService(spy, settings))
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "openai-interaction-settings-fail-req",
+			Usage: OpenAIUsage{
+				InputTokens:  12,
+				OutputTokens: 4,
+			},
+			Model:    "gpt-5.1",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 1004, Quota: 100, Group: &Group{RateMultiplier: 1}},
+		User:    &User{ID: 2004},
+		Account: &Account{ID: 3004, Type: AccountTypeAPIKey},
+		Interaction: &UsageInteractionCapture{
+			RequestContent:  map[string]any{"prompt": "full prompt"},
+			ResponseContent: map[string]any{"output": "full response"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("settings read failure must not veto usage log persistence: %v", err)
+	}
+	if usageRepo.calls != 1 || usageRepo.lastLog == nil || usageRepo.lastLog.ID != 801 {
+		t.Fatalf("usage log was not persisted after settings failure: calls=%d log=%#v", usageRepo.calls, usageRepo.lastLog)
+	}
+	if spy.created {
+		t.Fatalf("settings failure must disable optional interaction recording, got %#v", spy.last)
+	}
+}

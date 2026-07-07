@@ -353,7 +353,7 @@ func (r *usageLogRepository) CreateWithUsageInteraction(ctx context.Context, log
 		if err != nil {
 			return false, err
 		}
-		if log.ID > 0 {
+		if inserted && log.ID > 0 {
 			if err := interactionService.RecordForUsageLogWithFallback(ctx, log, capture, captureErr, "repository.usage_log"); err != nil {
 				return false, err
 			}
@@ -370,7 +370,7 @@ func (r *usageLogRepository) CreateWithUsageInteraction(ctx context.Context, log
 	}
 	txCtx := dbent.NewTxContext(ctx, tx)
 	inserted, err := r.createSingle(txCtx, tx.Client(), log)
-	if err == nil && log.ID > 0 {
+	if err == nil && inserted && log.ID > 0 {
 		err = interactionService.RecordForUsageLogWithFallback(txCtx, log, capture, captureErr, "repository.usage_log")
 	}
 	if err != nil {

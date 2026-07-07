@@ -65,6 +65,46 @@ func TestUsageInteractionRepositoryCreatePersistsFullPayloads(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUsageInteractionRepositoryCreateDoesNotUpdateExistingInteraction(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := NewUsageInteractionRepository(db)
+
+	input := service.UsageInteractionInput{
+		UsageLogID:        11,
+		RequestID:         "req-duplicate",
+		RequestContent:    map[string]any{"prompt": "duplicate"},
+		ResponseContent:   map[string]any{},
+		RequestParameters: map[string]any{},
+		RoutingContext:    map[string]any{},
+	}
+
+	mock.ExpectExec("ON CONFLICT \\(usage_log_id\\) DO NOTHING").
+		WithArgs(
+			input.UsageLogID,
+			input.RequestID,
+			input.UserID,
+			input.APIKeyID,
+			input.AccountID,
+			input.GroupID,
+			service.UsageInteractionCaptureComplete,
+			input.CaptureError,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+			false,
+			sqlmock.AnyArg(),
+			sqlmock.AnyArg(),
+		).
+		WillReturnResult(sqlmock.NewResult(0, 0))
+
+	err := repo.Create(context.Background(), input, false, nil)
+	require.NoError(t, err)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestUsageInteractionRepositoryGetByUsageLogIDHidesRawUnlessRequested(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := NewUsageInteractionRepository(db)

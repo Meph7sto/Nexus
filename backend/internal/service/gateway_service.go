@@ -9744,7 +9744,7 @@ func (s *GatewayService) usageInteractionRecordingEnabled(ctx context.Context) b
 	enabled, err := s.usageInteractionService.RecordingEnabled(ctx)
 	if err != nil {
 		logger.LegacyPrintf("service.gateway", "Read usage interaction recording setting failed: %v", err)
-		return true
+		return false
 	}
 	return enabled
 }

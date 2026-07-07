@@ -218,3 +218,38 @@ func TestGatewayRecordUsage_ReturnsErrorWhenInteractionCreateFails(t *testing.T)
 		t.Fatalf("must not delete billed usage log outside an atomic repository transaction, deleted id=%d", usageRepo.deleteID)
 	}
 }
+
+func TestGatewayRecordUsage_SettingsReadFailureWritesUsageWithoutInteraction(t *testing.T) {
+	usageRepo := &usageInteractionUsageLogRepoStub{nextID: 701}
+	spy := &usageInteractionRepoSpy{}
+	settings := &usageInteractionServiceSettingRepoStub{err: errors.New("settings unavailable")}
+	svc := newGatewayUsageInteractionServiceForTest(usageRepo, NewUsageInteractionService(spy, settings))
+
+	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
+		Result: &ForwardResult{
+			RequestID: "gateway-interaction-settings-fail-req",
+			Usage: ClaudeUsage{
+				InputTokens:  10,
+				OutputTokens: 6,
+			},
+			Model:    "claude-sonnet-4",
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 504, Quota: 100},
+		User:    &User{ID: 604},
+		Account: &Account{ID: 704},
+		Interaction: &UsageInteractionCapture{
+			RequestContent:  map[string]any{"prompt": "full prompt"},
+			ResponseContent: map[string]any{"output": "full response"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("settings read failure must not veto usage log persistence: %v", err)
+	}
+	if usageRepo.calls != 1 || usageRepo.lastLog == nil || usageRepo.lastLog.ID != 701 {
+		t.Fatalf("usage log was not persisted after settings failure: calls=%d log=%#v", usageRepo.calls, usageRepo.lastLog)
+	}
+	if spy.created {
+		t.Fatalf("settings failure must disable optional interaction recording, got %#v", spy.last)
+	}
+}
