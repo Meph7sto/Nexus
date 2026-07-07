@@ -273,6 +273,22 @@ describe('useAppStore', () => {
  expect(store.publicSettingsLoaded).toBe(true)
  })
 
+ it('将旧品牌名 Sub2API 归一化为 Nexus', () => {
+ const windowAny = window as any
+ windowAny.__APP_CONFIG__ = {
+ site_name: 'Sub2API',
+ site_logo: '/logo.png',
+ }
+
+ const store = useAppStore()
+ const result = store.initFromInjectedConfig()
+
+ expect(result).toBe(true)
+ expect(store.siteName).toBe('Nexus')
+ expect(store.cachedPublicSettings?.site_name).toBe('Nexus')
+ expect(windowAny.__APP_CONFIG__.site_name).toBe('Nexus')
+ })
+
  it('无注入配置时返回 false', () => {
  const store = useAppStore()
  const result = store.initFromInjectedConfig()

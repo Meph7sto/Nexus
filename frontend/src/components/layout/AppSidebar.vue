@@ -22,7 +22,7 @@
  class="sidebar-brand-title text-lg font-bold text-[var(--nx-text)] transition-colors hover:text-[var(--nx-accent)]"
           @click="handleMenuItemClick"
  >
- {{ siteName }}
+ Nexus
  </router-link>
  <!-- Version Badge -->
  <VersionBadge :version="siteVersion" />
@@ -251,7 +251,6 @@ const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboar
 const expandedGroups = ref<Set<string>>(new Set())
 
 // Site settings from appStore (cached, no flicker)
-const siteName = computed(() => appStore.siteName)
 const siteLogo = computed(() => appStore.siteLogo)
 const siteVersion = computed(() => appStore.siteVersion)
 const settingsLoaded = computed(() => appStore.publicSettingsLoaded)
