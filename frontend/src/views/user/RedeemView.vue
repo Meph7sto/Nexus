@@ -3,7 +3,7 @@
  <div class="mx-auto max-w-2xl space-y-6">
  <!-- Current Balance Card -->
  <div class="card overflow-hidden">
- <div class="   px-6 py-8 text-center">
+ <div class="bg-[var(--nx-text)] px-6 py-8 text-center">
  <div
  class="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-lg bg-white/20 "
  >
