@@ -17,16 +17,6 @@
  <div class="metric-tabs" role="tablist" :aria-label="t('leaderboard.metric')">
  <button
  type="button"
- :class="['metric-tab', rankBy === 'tokens' && 'metric-tab-active']"
- role="tab"
- :aria-selected="rankBy === 'tokens'"
- @click="setRankBy('tokens')"
- >
- <Icon name="chartBar" size="sm" />
- {{ t('leaderboard.tokens') }}
- </button>
- <button
- type="button"
  :class="['metric-tab', rankBy === 'cost' && 'metric-tab-active']"
  role="tab"
  :aria-selected="rankBy === 'cost'"
@@ -34,6 +24,16 @@
  >
  <Icon name="dollar" size="sm" />
  {{ t('leaderboard.cost') }}
+ </button>
+ <button
+ type="button"
+ :class="['metric-tab', rankBy === 'tokens' && 'metric-tab-active']"
+ role="tab"
+ :aria-selected="rankBy === 'tokens'"
+ @click="setRankBy('tokens')"
+ >
+ <Icon name="chartBar" size="sm" />
+ {{ t('leaderboard.tokens') }}
  </button>
  </div>
 
@@ -145,7 +145,7 @@ const getLast24HoursRangeDates = () => {
 const defaultRange = getLast24HoursRangeDates()
 const startDate = ref(defaultRange.start)
 const endDate = ref(defaultRange.end)
-const rankBy = ref<UsageRankingMetric>('tokens')
+const rankBy = ref<UsageRankingMetric>('cost')
 const rows = ref<UsageRankingItem[]>([])
 const loading = ref(false)
 

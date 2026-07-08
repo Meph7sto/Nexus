@@ -82,26 +82,26 @@ describe('LeaderboardView', () => {
  },
  })
 
- it('loads the token leaderboard by default', async () => {
+ it('loads the cost leaderboard by default', async () => {
  mountView()
  await flushPromises()
 
  expect(getRanking).toHaveBeenCalledWith(expect.objectContaining({
- rank_by: 'tokens',
+ rank_by: 'cost',
  page: 1,
  page_size: 20,
  }))
  })
 
- it('switches to cost ranking and resets to the first page', async () => {
+ it('switches to token ranking and resets to the first page', async () => {
  const wrapper = mountView()
  await flushPromises()
 
- await wrapper.findAll('button').find((button) => button.text().includes('leaderboard.cost'))!.trigger('click')
+ await wrapper.findAll('button').find((button) => button.text().includes('leaderboard.tokens'))!.trigger('click')
  await flushPromises()
 
  expect(getRanking).toHaveBeenLastCalledWith(expect.objectContaining({
- rank_by: 'cost',
+ rank_by: 'tokens',
  page: 1,
  }))
  })
