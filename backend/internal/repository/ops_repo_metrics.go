@@ -9,6 +9,20 @@ import (
 	"github.com/Wei-Shaw/nexus/internal/service"
 )
 
+func (r *opsRepository) GetCurrentDatabaseSizeBytes(ctx context.Context) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, fmt.Errorf("nil ops repository")
+	}
+	var size sql.NullInt64
+	if err := r.db.QueryRowContext(ctx, `SELECT pg_database_size(current_database())`).Scan(&size); err != nil {
+		return 0, err
+	}
+	if !size.Valid || size.Int64 < 0 {
+		return 0, nil
+	}
+	return size.Int64, nil
+}
+
 func (r *opsRepository) InsertSystemMetrics(ctx context.Context, input *service.OpsInsertSystemMetricsInput) error {
 	if r == nil || r.db == nil {
 		return fmt.Errorf("nil ops repository")

@@ -5060,6 +5060,15 @@ export default {
  collectedAt: '采集时间：',
  window: '窗口',
  memory: '内存',
+ storage: {
+ title: '存储',
+ tooltip: '应用数据、PostgreSQL 数据库和已配置目录的存储占用',
+ loadFailed: '加载存储占用失败',
+ status: {
+ unavailable: '不可用',
+ unconfigured: '未配置'
+ }
+ },
  db: '数据库',
  goroutines: '协程',
  jobs: '后台任务',

@@ -4908,6 +4908,15 @@ export default {
  collectedAt: 'Collected at:',
  window: 'window',
  memory: 'Memory',
+ storage: {
+ title: 'Storage',
+ tooltip: 'Storage usage for app data, PostgreSQL, and configured directories',
+ loadFailed: 'Failed to load storage usage',
+ status: {
+ unavailable: 'N/A',
+ unconfigured: 'Not set'
+ }
+ },
  db: 'DB',
  goroutines: 'Goroutines',
  jobs: 'Jobs',

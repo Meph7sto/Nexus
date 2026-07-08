@@ -886,6 +886,25 @@ export interface OpsSystemLogSinkHealth {
  last_error?: string
 }
 
+export type OpsStorageUsageStatus = 'ok' | 'unavailable' | 'unconfigured'
+
+export interface OpsStorageUsageItem {
+ key: string
+ label: string
+ kind: string
+ source: string
+ path?: string
+ used_bytes?: number | null
+ status: OpsStorageUsageStatus | string
+ error?: string
+}
+
+export interface OpsStorageUsageResponse {
+ generated_at: string
+ total_used_bytes: number
+ items: OpsStorageUsageItem[]
+}
+
 export interface OpsErrorLog {
  id: number
  created_at: string
@@ -1289,6 +1308,13 @@ export async function getSystemLogSinkHealth(): Promise<OpsSystemLogSinkHealth> 
  return data
 }
 
+export async function getStorageUsage(options: OpsRequestOptions = {}): Promise<OpsStorageUsageResponse> {
+ const { data } = await apiClient.get<OpsStorageUsageResponse>('/admin/ops/storage', {
+ signal: options.signal
+ })
+ return data
+}
+
 // Advanced settings (DB-backed)
 export async function getAdvancedSettings(): Promise<OpsAdvancedSettings> {
  const { data } = await apiClient.get<OpsAdvancedSettings>('/admin/ops/advanced-settings')
@@ -1361,7 +1387,8 @@ export const opsAPI = {
  updateMetricThresholds,
  listSystemLogs,
  cleanupSystemLogs,
- getSystemLogSinkHealth
+ getSystemLogSinkHealth,
+ getStorageUsage
 }
 
 export default opsAPI

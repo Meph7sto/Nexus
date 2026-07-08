@@ -1214,6 +1214,9 @@ type OpsConfig struct {
 
 	// Pre-aggregation configuration.
 	Aggregation OpsAggregationConfig `mapstructure:"aggregation"`
+
+	// Storage controls best-effort storage usage reporting on the ops dashboard.
+	Storage OpsStorageConfig `mapstructure:"storage"`
 }
 
 type OpsCleanupConfig struct {
@@ -1235,6 +1238,18 @@ type OpsAggregationConfig struct {
 type OpsMetricsCollectorCacheConfig struct {
 	Enabled bool          `mapstructure:"enabled"`
 	TTL     time.Duration `mapstructure:"ttl"`
+}
+
+type OpsStorageConfig struct {
+	// Paths contains optional host/container paths to scan, e.g. postgres_data or docker data roots.
+	Paths []OpsStoragePathConfig `mapstructure:"paths"`
+}
+
+type OpsStoragePathConfig struct {
+	Key   string `mapstructure:"key"`
+	Label string `mapstructure:"label"`
+	Kind  string `mapstructure:"kind"`
+	Path  string `mapstructure:"path"`
 }
 
 type JWTConfig struct {
@@ -1740,6 +1755,7 @@ func setDefaults() {
 	viper.SetDefault("ops.metrics_collector_cache.enabled", true)
 	// TTL should be slightly larger than collection interval (1m) to maximize cross-replica cache hits.
 	viper.SetDefault("ops.metrics_collector_cache.ttl", 65*time.Second)
+	viper.SetDefault("ops.storage.paths", []map[string]string{})
 
 	// JWT
 	viper.SetDefault("jwt.secret", "")

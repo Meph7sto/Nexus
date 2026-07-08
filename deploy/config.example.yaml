@@ -853,6 +853,21 @@ ops:
   # Other detailed settings (cleanup, aggregation, etc.) are configured in ops settings dialog
   # 其他详细设置（数据清理、预聚合等）在运维监控设置对话框中配置
   enabled: true
+  # Optional storage paths shown on the admin/ops dashboard.
+  # 可选：在 admin/ops 仪表盘展示的存储目录。
+  # The application always reports PostgreSQL logical database size; directory
+  # paths must be readable from inside the backend container/process.
+  # 应用会始终展示 PostgreSQL 逻辑数据库大小；目录路径必须能被后端容器/进程读取。
+  storage:
+    paths:
+      # - key: postgres_data
+      #   label: postgres_data
+      #   kind: directory
+      #   path: /var/lib/postgresql/data
+      # - key: docker
+      #   label: Docker
+      #   kind: directory
+      #   path: /var/lib/docker
 
 # =============================================================================
 # JWT Configuration

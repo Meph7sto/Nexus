@@ -8,6 +8,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api'
 import { opsAPI, type OpsDashboardOverview, type OpsMetricThresholds, type OpsRealtimeTrafficSummary } from '@/api/admin/ops'
 import type { OpsRequestDetailsPreset } from './OpsRequestDetailsModal.vue'
+import OpsStorageUsageCard from './OpsStorageUsageCard.vue'
 import { useAdminSettingsStore } from '@/stores'
 import { formatNumber } from '@/utils/format'
 
@@ -1434,7 +1435,7 @@ function handleToolbarRefresh() {
 
  <!-- Integrated: System health (cards) -->
  <div v-if="overview" class="mt-2 border-t border-gray-100 pt-4 ">
- <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+ <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
  <!-- CPU -->
  <div class="rounded-lg bg-gray-50 p-3 ">
  <div class="flex items-center gap-1">
@@ -1466,6 +1467,8 @@ function handleToolbarRefresh() {
  }}
  </div>
  </div>
+
+ <OpsStorageUsageCard :refresh-key="props.lastUpdated?.getTime() ?? 0" :fullscreen="props.fullscreen" />
 
  <!-- DB -->
  <div class="rounded-lg bg-gray-50 p-3 ">
