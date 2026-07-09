@@ -26,6 +26,8 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		{"/v1/chat/completions", EndpointChatCompletions},
 		{"/v1/embeddings", EndpointEmbeddings},
 		{"/v1/responses", EndpointResponses},
+		{"/v1/responses/compact", "/v1/responses/compact"},
+		{"/v1/responses/compact/detail", "/v1/responses/compact"},
 		{"/v1/images/generations", EndpointImagesGenerations},
 		{"/v1/images/edits", EndpointImagesEdits},
 		{"/v1/videos/generations", EndpointVideosGenerations},
@@ -35,7 +37,8 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		// Prefixed paths (antigravity, openai).
 		{"/antigravity/v1/messages", EndpointMessages},
 		{"/openai/v1/responses", EndpointResponses},
-		{"/openai/v1/responses/compact", EndpointResponses},
+		{"/openai/v1/responses/compact", "/v1/responses/compact"},
+		{"/openai/v1/responses/compact/detail", "/v1/responses/compact"},
 		{"/openai/v1/images/generations", EndpointImagesGenerations},
 		{"/openai/v1/images/edits", EndpointImagesEdits},
 		{"/antigravity/v1beta/models/gemini:generateContent", EndpointGeminiModels},
@@ -43,6 +46,16 @@ func TestNormalizeInboundEndpoint(t *testing.T) {
 		// Gin route patterns with wildcards.
 		{"/v1beta/models/*modelAction", EndpointGeminiModels},
 		{"/v1/responses/*subpath", EndpointResponses},
+
+		// Bare Responses aliases.
+		{"/responses", EndpointResponses},
+		{"/responses/compact", "/v1/responses/compact"},
+		{"/responses/compact/detail", "/v1/responses/compact"},
+		{"/backend-api/codex/responses", EndpointResponses},
+		{"/backend-api/codex/responses/compact", "/v1/responses/compact"},
+		{"/backend-api/codex/responses/compact/detail", "/v1/responses/compact"},
+		{"/foo/responses", "/foo/responses"},
+		{"/foo/responses/compact", "/foo/responses/compact"},
 
 		// Unknown path is returned as-is.
 		{"/v1/embeddings", "/v1/embeddings"},
@@ -74,10 +87,13 @@ func TestDeriveUpstreamEndpoint(t *testing.T) {
 		// Gemini.
 		{"gemini models", EndpointGeminiModels, "/v1beta/models/gemini:gen", service.PlatformGemini, EndpointGeminiModels},
 
-		// OpenAI — always /v1/responses.
+		// OpenAI — root Responses.
 		{"openai responses root", EndpointResponses, "/v1/responses", service.PlatformOpenAI, EndpointResponses},
-		{"openai responses compact", EndpointResponses, "/openai/v1/responses/compact", service.PlatformOpenAI, "/v1/responses/compact"},
-		{"openai responses nested", EndpointResponses, "/openai/v1/responses/compact/detail", service.PlatformOpenAI, "/v1/responses/compact/detail"},
+		{"openai responses compact", "/v1/responses/compact", "/openai/v1/responses/compact", service.PlatformOpenAI, "/v1/responses/compact"},
+		{"openai responses nested", "/v1/responses/compact", "/openai/v1/responses/compact/detail", service.PlatformOpenAI, "/v1/responses/compact/detail"},
+		{"openai bare responses compact", "/v1/responses/compact", "/responses/compact", service.PlatformOpenAI, "/v1/responses/compact"},
+		{"openai codex direct responses compact", "/v1/responses/compact", "/backend-api/codex/responses/compact", service.PlatformOpenAI, "/v1/responses/compact"},
+		{"openai responses compact inbound only", "/v1/responses/compact", "/v1/messages", service.PlatformOpenAI, "/v1/responses/compact"},
 		{"openai from messages", EndpointMessages, "/v1/messages", service.PlatformOpenAI, EndpointResponses},
 		{"openai from completions", EndpointChatCompletions, "/v1/chat/completions", service.PlatformOpenAI, EndpointResponses},
 		{"openai embeddings", EndpointEmbeddings, "/v1/embeddings", service.PlatformOpenAI, EndpointEmbeddings},
@@ -113,6 +129,9 @@ func TestResponsesSubpathSuffix(t *testing.T) {
 		{"/v1/responses/", ""},
 		{"/v1/responses/compact", "/compact"},
 		{"/openai/v1/responses/compact/detail", "/compact/detail"},
+		{"/responses", ""},
+		{"/responses/compact", "/compact"},
+		{"/backend-api/codex/responses/compact", "/compact"},
 		{"/v1/messages", ""},
 		{"", ""},
 	}
@@ -152,6 +171,42 @@ func TestGetInboundEndpoint_FallbackWithoutMiddleware(t *testing.T) {
 	// Middleware did not run — fallback to normalizing c.Request.URL.Path.
 	got := GetInboundEndpoint(c)
 	require.Equal(t, EndpointMessages, got)
+}
+
+func TestInboundEndpointMiddleware_WildcardRoutesUsesRequestPath(t *testing.T) {
+	router := gin.New()
+	router.Use(InboundEndpointMiddleware())
+
+	var captured string
+	router.POST("/v1/responses/*subpath", func(c *gin.Context) {
+		captured = GetInboundEndpoint(c)
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses/compact", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "/v1/responses/compact", captured)
+}
+
+func TestGetInboundEndpoint_FallbackWildcardRouteUsesRequestPath(t *testing.T) {
+	router := gin.New()
+
+	var captured string
+	router.POST("/v1/responses/*subpath", func(c *gin.Context) {
+		require.Equal(t, "/v1/responses/*subpath", c.FullPath())
+		captured = GetInboundEndpoint(c)
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses/compact", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "/v1/responses/compact", captured)
 }
 
 func TestGetUpstreamEndpoint_FullFlow(t *testing.T) {
