@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/nexus/internal/pkg/apicompat"
 	"github.com/Wei-Shaw/nexus/internal/pkg/claude"
 	"github.com/Wei-Shaw/nexus/internal/pkg/logger"
+	"github.com/Wei-Shaw/nexus/internal/pkg/openai_compat"
 	"github.com/Wei-Shaw/nexus/internal/pkg/xai"
 	"github.com/Wei-Shaw/nexus/internal/util/responseheaders"
 	"github.com/gin-gonic/gin"
@@ -34,6 +35,10 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	promptCacheKey string,
 	defaultMappedModel string,
 ) (*OpenAIForwardResult, error) {
+	if account.Type == AccountTypeAPIKey && !openai_compat.ShouldUseResponsesAPI(account.Extra) {
+		return s.forwardAnthropicViaRawChatCompletions(ctx, c, account, body, defaultMappedModel)
+	}
+
 	startTime := time.Now()
 
 	// 1. Parse Anthropic request

@@ -1,12 +1,15 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/Wei-Shaw/nexus/internal/config"
 	"github.com/Wei-Shaw/nexus/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 )
+
+const CodexOfficialClientsOnlyMessage = "This account only allows Codex official clients"
 
 const (
 	// CodexClientRestrictionReasonDisabled 表示账号未开启 codex_cli_only。
@@ -48,9 +51,12 @@ type CodexRestrictionPolicy struct {
 
 // CodexClientRestrictionDetectionResult 是 codex_cli_only 统一检测入口结果。
 type CodexClientRestrictionDetectionResult struct {
-	Enabled bool
-	Matched bool
-	Reason  string
+	Enabled         bool
+	Matched         bool
+	Reason          string
+	DetectedVersion string
+	MinCodexVersion string
+	MaxCodexVersion string
 }
 
 // CodexClientRestrictionDetector 定义 codex_cli_only 统一检测入口。
@@ -127,10 +133,22 @@ func (d *OpenAICodexClientRestrictionDetector) Detect(c *gin.Context, account *A
 			return CodexClientRestrictionDetectionResult{Enabled: true, Matched: false, Reason: CodexClientRestrictionReasonVersionUndetectable}
 		}
 		if policy.MinCodexVersion != "" && CompareVersions(ver, policy.MinCodexVersion) < 0 {
-			return CodexClientRestrictionDetectionResult{Enabled: true, Matched: false, Reason: CodexClientRestrictionReasonVersionTooLow}
+			return CodexClientRestrictionDetectionResult{
+				Enabled:         true,
+				Matched:         false,
+				Reason:          CodexClientRestrictionReasonVersionTooLow,
+				DetectedVersion: ver,
+				MinCodexVersion: policy.MinCodexVersion,
+			}
 		}
 		if policy.MaxCodexVersion != "" && CompareVersions(ver, policy.MaxCodexVersion) > 0 {
-			return CodexClientRestrictionDetectionResult{Enabled: true, Matched: false, Reason: CodexClientRestrictionReasonVersionTooHigh}
+			return CodexClientRestrictionDetectionResult{
+				Enabled:         true,
+				Matched:         false,
+				Reason:          CodexClientRestrictionReasonVersionTooHigh,
+				DetectedVersion: ver,
+				MaxCodexVersion: policy.MaxCodexVersion,
+			}
 		}
 	}
 
@@ -144,4 +162,19 @@ func (d *OpenAICodexClientRestrictionDetector) Detect(c *gin.Context, account *A
 	}
 
 	return CodexClientRestrictionDetectionResult{Enabled: true, Matched: true, Reason: reason}
+}
+
+func CodexClientRestrictionMessage(r CodexClientRestrictionDetectionResult) string {
+	switch r.Reason {
+	case CodexClientRestrictionReasonVersionTooLow:
+		return fmt.Sprintf(
+			"Your Codex version (%s) is below the minimum required version (%s). Please update Codex.",
+			r.DetectedVersion, r.MinCodexVersion)
+	case CodexClientRestrictionReasonVersionTooHigh:
+		return fmt.Sprintf(
+			"Your Codex version (%s) exceeds the maximum allowed version (%s). Please downgrade Codex to %s or lower.",
+			r.DetectedVersion, r.MaxCodexVersion, r.MaxCodexVersion)
+	default:
+		return CodexOfficialClientsOnlyMessage
+	}
 }
