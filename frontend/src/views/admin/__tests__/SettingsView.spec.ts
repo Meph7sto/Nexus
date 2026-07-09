@@ -161,6 +161,10 @@ vi.mock("vue-i18n", async () => {
  "admin.settings.payment.findProvider": "查看支持的支付方式",
  "admin.settings.openaiExperimentalScheduler.title": "OpenAI 实验调度策略",
  "admin.settings.openaiExperimentalScheduler.description": "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑，不代表上游 OpenAI 官方能力。",
+ "admin.settings.openaiFastPolicy.actionPass": "透传（保留 service_tier）",
+ "admin.settings.openaiFastPolicy.actionFilter": "过滤（移除 service_tier）",
+ "admin.settings.openaiFastPolicy.actionForcePriority": "强制设置 priority（fast）",
+ "admin.settings.openaiFastPolicy.actionBlock": "拦截（拒绝请求）",
  "admin.settings.site.uploadImage": "上传图片",
  "admin.settings.site.remove": "移除",
  "admin.settings.platformQuota.platform": "平台",
@@ -762,6 +766,33 @@ describe("admin SettingsView payment visible method controls", () => {
  "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑",
  );
  expect(wrapper.text()).not.toContain("OpenAI 高级调度器");
+ });
+
+ it("renders OpenAI fast policy force priority action option", async () => {
+ getSettings.mockResolvedValueOnce({
+ ...baseSettingsResponse,
+ openai_fast_policy_settings: {
+ rules: [
+ {
+ service_tier: "all",
+ action: "pass",
+ scope: "all",
+ model_whitelist: [],
+ },
+ ],
+ },
+ });
+
+ const wrapper = mountView();
+
+ await flushPromises();
+
+ const actionSelect = wrapper
+ .findAll("select.select-stub")
+ .find((node) => node.text().includes("强制设置 priority（fast）"));
+
+ expect(actionSelect).toBeDefined();
+ expect(actionSelect?.text()).toContain("强制设置 priority（fast）");
  });
 
  it("passes translated upload and remove labels to the payment help image uploader", async () => {
