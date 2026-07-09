@@ -246,3 +246,25 @@ func TestAdminServiceBulkUpdateAccounts_ResolvesIDsFromFilters(t *testing.T) {
 	require.Equal(t, 0, result.Failed)
 	require.Equal(t, []int64{7, 11}, result.SuccessIDs)
 }
+
+func TestAdminServiceBulkUpdateAccountsRejectsHeaderOverridesForIneligibleTargets(t *testing.T) {
+	repo := &accountRepoStubForBulkUpdate{
+		getByIDsAccounts: []*Account{
+			{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
+			{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeOAuth},
+		},
+	}
+	svc := &adminServiceImpl{accountRepo: repo}
+
+	result, err := svc.BulkUpdateAccounts(context.Background(), &BulkUpdateAccountsInput{
+		AccountIDs: []int64{1, 2},
+		Credentials: map[string]any{
+			credKeyHeaderOverrideEnabled: true,
+			credKeyHeaderOverrides:       map[string]any{"user-agent": "cli"},
+		},
+	})
+
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.Empty(t, repo.bulkUpdateIDs)
+}

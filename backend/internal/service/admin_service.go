@@ -2742,6 +2742,44 @@ func (s *adminServiceImpl) ListAccounts(ctx context.Context, page, pageSize int,
 	return accounts, result.Total, nil
 }
 
+func (s *adminServiceImpl) ListAccountsForSchedulerScoreFilter(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, error) {
+	if s == nil || s.accountRepo == nil {
+		return nil, nil
+	}
+	if repo, ok := s.accountRepo.(interface {
+		ListAllWithFilters(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode string) ([]Account, error)
+	}); ok {
+		return repo.ListAllWithFilters(ctx, platform, accountType, status, search, groupID, privacyMode)
+	}
+
+	const pageSize = 500
+	page := 1
+	accounts := make([]Account, 0, pageSize)
+	for {
+		params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: "id", SortOrder: pagination.SortOrderAsc}
+		batch, result, err := s.accountRepo.ListWithFilters(ctx, params, platform, accountType, status, search, groupID, privacyMode)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, batch...)
+		if result == nil || int64(len(accounts)) >= result.Total || len(batch) == 0 {
+			break
+		}
+		page++
+	}
+	return accounts, nil
+}
+
+func (s *adminServiceImpl) ListOpenAISchedulableAccountsForSchedulerScore(ctx context.Context, groupID *int64) ([]Account, error) {
+	if s == nil || s.accountRepo == nil {
+		return nil, nil
+	}
+	if groupID != nil {
+		return s.accountRepo.ListSchedulableByGroupIDAndPlatform(ctx, *groupID, PlatformOpenAI)
+	}
+	return s.accountRepo.ListSchedulableUngroupedByPlatform(ctx, PlatformOpenAI)
+}
+
 func (s *adminServiceImpl) GetOpenAIQuotaSummary(ctx context.Context, input OpenAIQuotaSummaryInput) (*OpenAIQuotaSummaryResponse, error) {
 	if input.GeneratedAt.IsZero() {
 		input.GeneratedAt = time.Now().UTC()
@@ -2832,6 +2870,10 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		if err := s.checkMixedChannelRisk(ctx, 0, input.Platform, groupIDs); err != nil {
 			return nil, err
 		}
+	}
+
+	if err := NormalizeHeaderOverrideCredentialsForAccount(input.Platform, input.Type, input.Credentials); err != nil {
+		return nil, err
 	}
 
 	account := &Account{
@@ -2964,6 +3006,11 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 		// 敏感子键采用"incoming 没提供就保留"的合并语义：前端响应已脱敏，
 		// 全对象 PUT 编辑时不会再带回 token，避免覆盖时清空已有凭证。
 		account.Credentials = MergePreservingSensitiveCreds(account.Credentials, input.Credentials)
+	}
+	if input.Credentials != nil {
+		if err := NormalizeHeaderOverrideCredentialsForAccount(account.Platform, account.Type, account.Credentials); err != nil {
+			return nil, err
+		}
 	}
 	// Extra 使用 map：需要区分“未提供(nil)”与“显式清空({})”。
 	// 关闭配额限制时前端会删除 quota_* 键并提交 extra:{}，此时也必须落库。
@@ -3180,6 +3227,18 @@ func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUp
 		if *input.RateMultiplier < 0 {
 			return nil, errors.New("rate_multiplier must be >= 0")
 		}
+	}
+	if hasHeaderOverrideCredentialConfig(input.Credentials) {
+		for _, acc := range cachedTargets {
+			if acc != nil && !acc.IsHeaderOverrideEligible() {
+				return nil, infraerrors.Newf(http.StatusBadRequest, "INVALID_HEADER_OVERRIDE",
+					"header overrides can only be configured on Anthropic/OpenAI API key accounts; account %d is %s/%s",
+					acc.ID, acc.Platform, acc.Type)
+			}
+		}
+	}
+	if err := NormalizeHeaderOverrideCredentials(input.Credentials); err != nil {
+		return nil, err
 	}
 
 	// Prepare bulk updates for columns and JSONB fields.

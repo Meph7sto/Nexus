@@ -1467,6 +1467,91 @@
  </div>
  </div>
 
+ <!-- Header Override Section (anthropic/openai apikey only) -->
+ <div v-if="isHeaderOverrideEligible(form.platform, form.type)" class="border-t border-gray-200 pt-4 ">
+ <div class="mb-3 flex items-center justify-between">
+ <div>
+ <label class="input-label mb-0">{{ t('admin.accounts.headerOverride.title') }}</label>
+ <p class="mt-1 text-xs text-gray-500 ">
+ {{ t('admin.accounts.headerOverride.hint') }}
+ </p>
+ </div>
+ <button
+ type="button"
+ @click="headerOverrideEnabled = !headerOverrideEnabled"
+ :class="[
+ 'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+ headerOverrideEnabled ? 'bg-primary-600' : 'bg-gray-200 '
+ ]"
+ >
+ <span
+ :class="[
+ 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+ headerOverrideEnabled ? 'translate-x-5' : 'translate-x-0'
+ ]"
+ />
+ </button>
+ </div>
+
+ <div v-if="headerOverrideEnabled" class="space-y-3">
+ <div class="rounded-md border border-[var(--nx-border)] bg-[var(--nx-bg)] p-3">
+ <p class="text-xs text-[var(--nx-muted)]">
+ <Icon name="exclamationCircle" size="sm" class="mr-1 inline" :stroke-width="2" />
+ {{ t('admin.accounts.headerOverride.info') }}
+ </p>
+ </div>
+
+ <div v-if="headerOverrideRows.length > 0" class="space-y-2">
+ <div
+ v-for="(row, index) in headerOverrideRows"
+ :key="getHeaderOverrideRowKey(row)"
+ class="flex flex-col gap-2 sm:flex-row sm:items-center"
+ >
+ <input
+ v-model="row.name"
+ type="text"
+ class="input min-w-0 flex-1"
+ :placeholder="t('admin.accounts.headerOverride.namePlaceholder')"
+ />
+ <input
+ v-model="row.value"
+ type="text"
+ class="input min-w-0 flex-1"
+ :placeholder="t('admin.accounts.headerOverride.valuePlaceholder')"
+ />
+ <button
+ type="button"
+ @click="removeHeaderOverrideRow(index)"
+ class="self-end rounded-md p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 sm:self-auto"
+ >
+ <Icon name="trash" size="sm" :stroke-width="2" />
+ </button>
+ </div>
+ </div>
+
+ <button
+ type="button"
+ @click="addHeaderOverrideRow"
+ class="w-full rounded-md border border-dashed border-[var(--nx-border)] bg-[var(--nx-surface)] px-4 py-2 text-[var(--nx-muted)] transition-colors hover:border-[var(--nx-text)] hover:text-[var(--nx-text)]"
+ >
+ <Icon name="plus" size="sm" class="mr-1 inline" :stroke-width="2" />
+ {{ t('admin.accounts.headerOverride.addRow') }}
+ </button>
+
+ <button
+ type="button"
+ @click="fillHeaderOverrideTemplate"
+ class="rounded-md border border-[var(--nx-border)] bg-[var(--nx-bg)] px-3 py-1 text-xs text-[var(--nx-text)] transition-colors hover:border-[var(--nx-text)]"
+ >
+ + {{ t('admin.accounts.headerOverride.fillTemplate') }}
+ </button>
+
+ <p class="text-xs text-gray-500 ">
+ {{ t('admin.accounts.headerOverride.emptyValueHint') }}
+ </p>
+ </div>
+ </div>
+
  </div>
 
  <!-- Bedrock credentials (only for Anthropic Bedrock type) -->
@@ -3320,7 +3405,12 @@ import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import {
  applyAntigravityProjectID,
- applyInterceptWarmup
+ applyHeaderOverride,
+ applyInterceptWarmup,
+ getHeaderOverrideTemplate,
+ isHeaderOverrideEligible,
+ validateHeaderOverrideRows,
+ type HeaderOverrideRow
 } from '@/components/account/credentialsBuilder'
 import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
@@ -3504,6 +3594,31 @@ function parsePoolModeRetryStatusCodes(input: string): number[] {
 const customErrorCodesEnabled = ref(false)
 const selectedErrorCodes = ref<number[]>([])
 const customErrorCodeInput = ref<number | null>(null)
+const headerOverrideEnabled = ref(false)
+const headerOverrideRows = ref<HeaderOverrideRow[]>([])
+
+const addHeaderOverrideRow = () => {
+ headerOverrideRows.value.push({ name: '', value: '' })
+}
+
+const removeHeaderOverrideRow = (index: number) => {
+ headerOverrideRows.value.splice(index, 1)
+}
+
+const fillHeaderOverrideTemplate = () => {
+ if (!isHeaderOverrideEligible(form.platform, form.type)) return
+ const existing = new Set(
+ headerOverrideRows.value.map((row) => row.name.trim().toLowerCase()).filter(Boolean)
+ )
+ const rows = headerOverrideRows.value.filter((row) => row.name.trim() || row.value.trim())
+ for (const row of getHeaderOverrideTemplate(form.platform)) {
+ if (!existing.has(row.name)) {
+ rows.push(row)
+ }
+ }
+ headerOverrideRows.value = rows
+}
+
 const interceptWarmupRequests = ref(false)
 const autoPauseOnExpired = ref(true)
 const openaiPassthroughEnabled = ref(false)
@@ -3561,6 +3676,7 @@ const vertexServiceAccountDragActive = ref(false)
 const tempUnschedEnabled = ref(false)
 const tempUnschedRules = ref<TempUnschedRuleForm[]>([])
 const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-model-mapping')
+const getHeaderOverrideRowKey = createStableObjectKeyResolver<HeaderOverrideRow>('create-header-override-row')
 const getOpenAICompactModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-openai-compact-model-mapping')
 const getAntigravityModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-antigravity-model-mapping')
 const getTempUnschedRuleKey = createStableObjectKeyResolver<TempUnschedRuleForm>('create-temp-unsched-rule')
@@ -3949,6 +4065,8 @@ watch(
  if (newPlatform !== 'anthropic' && newPlatform !== 'antigravity') {
  interceptWarmupRequests.value = false
  }
+ headerOverrideEnabled.value = false
+ headerOverrideRows.value = []
  if (newPlatform !== 'openai') {
  openaiPassthroughEnabled.value = false
  openAIEndpointCapabilities.value = ['chat_completions', 'embeddings']
@@ -4351,6 +4469,8 @@ const resetForm = () => {
  customErrorCodesEnabled.value = false
  selectedErrorCodes.value = []
  customErrorCodeInput.value = null
+ headerOverrideEnabled.value = false
+ headerOverrideRows.value = []
  interceptWarmupRequests.value = false
  autoPauseOnExpired.value = true
  openaiPassthroughEnabled.value = false
@@ -4779,6 +4899,17 @@ const handleSubmit = async () => {
  if (customErrorCodesEnabled.value) {
  credentials.custom_error_codes_enabled = true
  credentials.custom_error_codes = [...selectedErrorCodes.value]
+ }
+
+ if (isHeaderOverrideEligible(form.platform, form.type)) {
+ if (headerOverrideEnabled.value) {
+ const headerError = validateHeaderOverrideRows(headerOverrideRows.value)
+ if (headerError) {
+ appStore.showError(t(`admin.accounts.headerOverride.${headerError}`))
+ return
+ }
+ }
+ applyHeaderOverride(credentials, headerOverrideEnabled.value, headerOverrideRows.value, 'create')
  }
 
  applyInterceptWarmup(credentials, interceptWarmupRequests.value, 'create')
