@@ -925,6 +925,8 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 		req.Header.Set("content-type", "application/json")
 	}
 
+	account.ApplyHeaderOverrides(req.Header)
+
 	return req, nil
 }
 

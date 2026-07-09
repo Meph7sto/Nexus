@@ -301,6 +301,98 @@ func (s *OpenAIGatewayService) SelectAccountByPreviousResponseID(
 	return s.selectAccountByPreviousResponseIDForCapability(ctx, groupID, previousResponseID, requestedModel, excludedIDs, "", requireCompact)
 }
 
+func (s *OpenAIGatewayService) ResolveAccountIDByPreviousResponseIDForScheduler(
+	ctx context.Context,
+	groupID *int64,
+	previousResponseID string,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+	requiredCapability OpenAIEndpointCapability,
+	requireCompact bool,
+) int64 {
+	if s == nil {
+		return 0
+	}
+	responseID := strings.TrimSpace(previousResponseID)
+	if responseID == "" {
+		return 0
+	}
+	store := s.getOpenAIWSStateStore()
+	if store == nil {
+		return 0
+	}
+
+	accountID, err := store.GetResponseAccount(ctx, derefGroupID(groupID), responseID)
+	if err != nil || accountID <= 0 {
+		return 0
+	}
+	if excludedIDs != nil {
+		if _, excluded := excludedIDs[accountID]; excluded {
+			return 0
+		}
+	}
+
+	account, err := s.getSchedulableAccount(ctx, accountID)
+	if err != nil || account == nil {
+		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+		return 0
+	}
+	if s.getOpenAIWSProtocolResolver().Resolve(account).Transport != OpenAIUpstreamTransportResponsesWebsocketV2 {
+		return 0
+	}
+	if shouldClearStickySession(account, requestedModel) || !account.IsOpenAI() || !account.IsSchedulable() {
+		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+		return 0
+	}
+	if !parentHealthyForShadow(account, s.parentAccountLookup(ctx)) {
+		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+		return 0
+	}
+	if requestedModel != "" && !account.IsModelSupported(requestedModel) {
+		return 0
+	}
+	if !account.SupportsOpenAIEndpointCapability(requiredCapability) {
+		return 0
+	}
+	if paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, account); paused {
+		return 0
+	}
+	if s.schedulerSnapshot != nil && s.accountRepo != nil {
+		latest, latestErr := s.accountRepo.GetByID(ctx, account.ID)
+		if latestErr != nil || latest == nil {
+			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+			return 0
+		}
+		if shouldClearStickySession(latest, requestedModel) || !latest.IsOpenAI() || !latest.IsSchedulable() {
+			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+			return 0
+		}
+		if !parentHealthyForShadow(latest, s.parentAccountLookup(ctx)) {
+			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+			return 0
+		}
+		if requestedModel != "" && !latest.IsModelSupported(requestedModel) {
+			return 0
+		}
+		if !latest.SupportsOpenAIEndpointCapability(requiredCapability) {
+			return 0
+		}
+		if paused, _ := shouldAutoPauseOpenAIAccountByQuota(ctx, latest); paused {
+			return 0
+		}
+		if s.isOpenAIAccountRuntimeBlocked(latest) {
+			_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+			return 0
+		}
+		account = latest
+	}
+	if requireCompact && openAICompactSupportTier(account) == 0 {
+		_ = store.DeleteResponseAccount(ctx, derefGroupID(groupID), responseID)
+		return 0
+	}
+	return accountID
+}
+
 func (s *OpenAIGatewayService) selectAccountByPreviousResponseIDForCapability(
 	ctx context.Context,
 	groupID *int64,

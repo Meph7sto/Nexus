@@ -401,6 +401,8 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 		req.Header.Set("content-type", "application/json")
 	}
 
+	account.ApplyHeaderOverrides(req.Header)
+
 	return req, nil
 }
 

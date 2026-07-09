@@ -131,6 +131,8 @@ func (s *OpenAIGatewayService) buildOpenAIWSHeaders(
 		headers.Set("user-agent", codexCLIUserAgent)
 	}
 
+	account.ApplyHeaderOverrides(headers)
+
 	return headers, sessionResolution, nil
 }
 

@@ -486,6 +486,115 @@
  </div>
  </div>
 
+ <!-- Header Override (anthropic/openai apikey only) -->
+ <div v-if="allHeaderOverrideCapable" class="border-t border-gray-200 pt-4 ">
+ <div class="flex items-center justify-between">
+ <div class="flex-1 pr-4">
+ <label
+ id="bulk-edit-header-override-label"
+ class="input-label mb-0"
+ for="bulk-edit-header-override-enabled"
+ >
+ {{ t('admin.accounts.headerOverride.title') }}
+ </label>
+ <p class="mt-1 text-xs text-gray-500 ">
+ {{ t('admin.accounts.headerOverride.hint') }}
+ </p>
+ </div>
+ <input
+ v-model="enableHeaderOverride"
+ id="bulk-edit-header-override-enabled"
+ type="checkbox"
+ aria-controls="bulk-edit-header-override-body"
+ class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+ />
+ </div>
+ <div v-if="enableHeaderOverride" id="bulk-edit-header-override-body" class="mt-3 space-y-3">
+ <button
+ type="button"
+ :class="[
+ 'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+ headerOverrideEnabled ? 'bg-primary-600' : 'bg-gray-200 '
+ ]"
+ @click="headerOverrideEnabled = !headerOverrideEnabled"
+ >
+ <span
+ :class="[
+ 'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+ headerOverrideEnabled ? 'translate-x-5' : 'translate-x-0'
+ ]"
+ />
+ </button>
+
+ <div v-if="headerOverrideEnabled" class="space-y-3">
+ <div class="rounded-md border border-[var(--nx-border)] bg-[var(--nx-bg)] p-3">
+ <p class="text-xs text-[var(--nx-muted)]">
+ <Icon name="exclamationCircle" size="sm" class="mr-1 inline" :stroke-width="2" />
+ {{ t('admin.accounts.headerOverride.info') }}
+ </p>
+ </div>
+
+ <p class="text-xs text-amber-600 ">
+ {{ t('admin.accounts.headerOverride.bulkReplaceHint') }}
+ </p>
+
+ <div v-if="headerOverrideRows.length > 0" class="space-y-2">
+ <div
+ v-for="(row, index) in headerOverrideRows"
+ :key="getHeaderOverrideRowKey(row)"
+ class="flex flex-col gap-2 sm:flex-row sm:items-center"
+ >
+ <input
+ v-model="row.name"
+ type="text"
+ class="input min-w-0 flex-1"
+ :placeholder="t('admin.accounts.headerOverride.namePlaceholder')"
+ />
+ <input
+ v-model="row.value"
+ type="text"
+ class="input min-w-0 flex-1"
+ :placeholder="t('admin.accounts.headerOverride.valuePlaceholder')"
+ />
+ <button
+ type="button"
+ class="self-end rounded-md p-2 text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 sm:self-auto"
+ @click="removeHeaderOverrideRow(index)"
+ >
+ <Icon name="trash" size="sm" :stroke-width="2" />
+ </button>
+ </div>
+ </div>
+
+ <button
+ type="button"
+ class="w-full rounded-md border border-dashed border-[var(--nx-border)] bg-[var(--nx-surface)] px-4 py-2 text-[var(--nx-muted)] transition-colors hover:border-[var(--nx-text)] hover:text-[var(--nx-text)]"
+ @click="addHeaderOverrideRow"
+ >
+ <Icon name="plus" size="sm" class="mr-1 inline" :stroke-width="2" />
+ {{ t('admin.accounts.headerOverride.addRow') }}
+ </button>
+
+ <div v-if="headerOverrideTemplatePlatform" class="flex flex-wrap gap-2">
+ <button
+ type="button"
+ class="rounded-md border border-[var(--nx-border)] bg-[var(--nx-bg)] px-3 py-1 text-xs text-[var(--nx-text)] transition-colors hover:border-[var(--nx-text)]"
+ @click="fillHeaderOverrideTemplate"
+ >
+ + {{ t('admin.accounts.headerOverride.fillTemplate') }}
+ </button>
+ </div>
+
+ <p class="text-xs text-gray-500 ">
+ {{ t('admin.accounts.headerOverride.emptyValueHint') }}
+ </p>
+ </div>
+ <p v-else class="text-xs text-gray-500 ">
+ {{ t('admin.accounts.headerOverride.bulkDisableHint') }}
+ </p>
+ </div>
+ </div>
+
  <!-- Proxy -->
  <div class="border-t border-gray-200 pt-4 ">
  <div class="mb-3 flex items-center justify-between">
@@ -1150,6 +1259,16 @@ import {
  getPresetMappingsByPlatform
 } from '@/composables/useModelWhitelist'
 import {
+ buildHeaderOverridesObject,
+ getHeaderOverrideTemplate,
+ isHeaderOverrideEligible,
+ validateHeaderOverrideRows,
+ HEADER_OVERRIDE_ENABLED_CREDENTIAL_KEY,
+ HEADER_OVERRIDES_CREDENTIAL_KEY,
+ type HeaderOverrideRow
+} from '@/components/account/credentialsBuilder'
+import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
+import {
  OPENAI_WS_MODE_CTX_POOL,
  OPENAI_WS_MODE_OFF,
  OPENAI_WS_MODE_PASSTHROUGH,
@@ -1217,6 +1336,16 @@ const allOpenAIAPIKey = computed(() => {
  )
 })
 
+const allHeaderOverrideCapable = computed(() => {
+ return (
+ targetSelectedPlatforms.value.length > 0 &&
+ targetSelectedTypes.value.length > 0 &&
+ targetSelectedPlatforms.value.every((platform) =>
+ targetSelectedTypes.value.every((accountType) => isHeaderOverrideEligible(platform, accountType))
+ )
+ )
+})
+
 // 是否全部为 Anthropic OAuth/SetupToken（RPM 配置仅在此条件下显示）
 const allAnthropicOAuthOrSetupToken = computed(() => {
  return (
@@ -1253,6 +1382,7 @@ const enableBaseUrl = ref(false)
 const enableModelRestriction = ref(false)
 const enableCustomErrorCodes = ref(false)
 const enableInterceptWarmup = ref(false)
+const enableHeaderOverride = ref(false)
 const enableProxy = ref(false)
 const enableConcurrency = ref(false)
 const enableLoadFactor = ref(false)
@@ -1281,6 +1411,9 @@ const modelMappings = ref<ModelMapping[]>([])
 const selectedErrorCodes = ref<number[]>([])
 const customErrorCodeInput = ref<number | null>(null)
 const interceptWarmupRequests = ref(false)
+const headerOverrideEnabled = ref(false)
+const headerOverrideRows = ref<HeaderOverrideRow[]>([])
+const getHeaderOverrideRowKey = createStableObjectKeyResolver<HeaderOverrideRow>('bulk-header-override-row')
 const proxyId = ref<number | null>(null)
 const concurrency = ref(1)
 const loadFactor = ref<number | null>(null)
@@ -1423,6 +1556,33 @@ const removeErrorCode = (code: number) => {
  }
 }
 
+const addHeaderOverrideRow = () => {
+ headerOverrideRows.value.push({ name: '', value: '' })
+}
+
+const removeHeaderOverrideRow = (index: number) => {
+ headerOverrideRows.value.splice(index, 1)
+}
+
+const headerOverrideTemplatePlatform = computed(() => {
+ return targetSelectedPlatforms.value.length === 1 ? targetSelectedPlatforms.value[0] : null
+})
+
+const fillHeaderOverrideTemplate = () => {
+ const platform = headerOverrideTemplatePlatform.value
+ if (!platform) return
+ const existing = new Set(
+ headerOverrideRows.value.map((row) => row.name.trim().toLowerCase()).filter(Boolean)
+ )
+ const rows = headerOverrideRows.value.filter((row) => row.name.trim() || row.value.trim())
+ for (const row of getHeaderOverrideTemplate(platform)) {
+ if (!existing.has(row.name)) {
+ rows.push(row)
+ }
+ }
+ headerOverrideRows.value = rows
+}
+
 const buildModelMappingObject = (): Record<string, string> | null => {
  return buildModelMappingPayload(
  modelRestrictionMode.value,
@@ -1520,6 +1680,14 @@ const buildUpdatePayload = (): Record<string, unknown> | null => {
 
  if (enableInterceptWarmup.value) {
  credentials.intercept_warmup_requests = interceptWarmupRequests.value
+ credentialsChanged = true
+ }
+
+ if (enableHeaderOverride.value) {
+ credentials[HEADER_OVERRIDE_ENABLED_CREDENTIAL_KEY] = headerOverrideEnabled.value
+ credentials[HEADER_OVERRIDES_CREDENTIAL_KEY] = headerOverrideEnabled.value
+ ? buildHeaderOverridesObject(headerOverrideRows.value)
+ : {}
  credentialsChanged = true
  }
 
@@ -1651,6 +1819,7 @@ const handleSubmit = async () => {
  enableModelRestriction.value ||
  enableCustomErrorCodes.value ||
  enableInterceptWarmup.value ||
+ enableHeaderOverride.value ||
  enableProxy.value ||
  enableConcurrency.value ||
  enableLoadFactor.value ||
@@ -1670,6 +1839,18 @@ const handleSubmit = async () => {
  if (!hasAnyFieldEnabled) {
  appStore.showError(t('admin.accounts.bulkEdit.noFieldsSelected'))
  return
+ }
+
+ if (enableHeaderOverride.value && headerOverrideEnabled.value) {
+ if (!headerOverrideRows.value.some((row) => row.name.trim())) {
+ appStore.showError(t('admin.accounts.headerOverride.bulkEmptyRows'))
+ return
+ }
+ const headerError = validateHeaderOverrideRows(headerOverrideRows.value)
+ if (headerError) {
+ appStore.showError(t(`admin.accounts.headerOverride.${headerError}`))
+ return
+ }
  }
 
  const built = buildUpdatePayload()
@@ -1753,6 +1934,7 @@ watch(
  enableModelRestriction.value = false
  enableCustomErrorCodes.value = false
  enableInterceptWarmup.value = false
+ enableHeaderOverride.value = false
  enableProxy.value = false
  enableConcurrency.value = false
  enableLoadFactor.value = false
@@ -1778,6 +1960,8 @@ watch(
  selectedErrorCodes.value = []
  customErrorCodeInput.value = null
  interceptWarmupRequests.value = false
+ headerOverrideEnabled.value = false
+ headerOverrideRows.value = []
  proxyId.value = null
  concurrency.value = 1
  loadFactor.value = null

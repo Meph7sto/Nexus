@@ -166,6 +166,8 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 		upstreamReq.Header.Set("user-agent", "nexus-grok/1.0")
 	}
 
+	account.ApplyHeaderOverrides(upstreamReq.Header)
+
 	// 6. Send request
 	proxyURL := ""
 	if account.Proxy != nil {

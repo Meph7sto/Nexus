@@ -4022,6 +4022,105 @@
                 </div>
                 <Toggle v-model="form.openai_advanced_scheduler_enabled" />
               </div>
+
+              <div
+                v-if="form.openai_advanced_scheduler_enabled"
+                class="flex flex-col gap-3 border-t border-[var(--nx-border)] pt-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <label class="text-sm font-medium text-[var(--nx-text)]">
+                    {{
+                      t(
+                        "admin.settings.openaiExperimentalScheduler.stickyWeightedTitle",
+                      )
+                    }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-[var(--nx-muted)]">
+                    {{
+                      t(
+                        "admin.settings.openaiExperimentalScheduler.stickyWeightedDescription",
+                      )
+                    }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="
+                    form.openai_advanced_scheduler_sticky_weighted_enabled
+                  "
+                />
+              </div>
+
+              <div
+                v-if="form.openai_advanced_scheduler_enabled"
+                class="flex flex-col gap-3 border-t border-[var(--nx-border)] pt-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <label class="text-sm font-medium text-[var(--nx-text)]">
+                    {{
+                      t(
+                        "admin.settings.openaiExperimentalScheduler.subscriptionPriorityTitle",
+                      )
+                    }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-[var(--nx-muted)]">
+                    {{
+                      t(
+                        "admin.settings.openaiExperimentalScheduler.subscriptionPriorityDescription",
+                      )
+                    }}
+                  </p>
+                </div>
+                <Toggle
+                  v-model="
+                    form.openai_advanced_scheduler_subscription_priority_enabled
+                  "
+                />
+              </div>
+
+              <div
+                v-if="form.openai_advanced_scheduler_enabled"
+                class="border-t border-[var(--nx-border)] pt-4"
+              >
+                <div>
+                  <label class="text-sm font-medium text-[var(--nx-text)]">
+                    {{
+                      t(
+                        "admin.settings.openaiExperimentalScheduler.weightsTitle",
+                      )
+                    }}
+                  </label>
+                  <p class="mt-0.5 text-xs text-[var(--nx-muted)]">
+                    {{
+                      t(
+                        "admin.settings.openaiExperimentalScheduler.weightsDescription",
+                      )
+                    }}
+                  </p>
+                </div>
+
+                <div
+                  class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5"
+                >
+                  <label
+                    v-for="field in openAIAdvancedSchedulerWeightFields"
+                    :key="field.key"
+                    class="block min-w-0"
+                  >
+                    <span
+                      class="block truncate text-xs font-medium text-[var(--nx-muted)]"
+                    >
+                      {{ field.label }}
+                    </span>
+                    <input
+                      v-model="form[field.key]"
+                      class="input mt-1"
+                      inputmode="decimal"
+                      :placeholder="field.placeholder"
+                      type="text"
+                    />
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -7897,6 +7996,18 @@ type SettingsForm = Omit<
   google_oauth_client_secret: string;
   force_email_on_third_party_signup: boolean;
   openai_advanced_scheduler_enabled: boolean;
+  openai_advanced_scheduler_sticky_weighted_enabled: boolean;
+  openai_advanced_scheduler_subscription_priority_enabled: boolean;
+  openai_advanced_scheduler_lb_top_k: string;
+  openai_advanced_scheduler_weight_priority: string;
+  openai_advanced_scheduler_weight_load: string;
+  openai_advanced_scheduler_weight_queue: string;
+  openai_advanced_scheduler_weight_error_rate: string;
+  openai_advanced_scheduler_weight_ttft: string;
+  openai_advanced_scheduler_weight_reset: string;
+  openai_advanced_scheduler_weight_quota_headroom: string;
+  openai_advanced_scheduler_weight_previous_response: string;
+  openai_advanced_scheduler_weight_session_sticky: string;
   // 系统全局平台限额 map；form 内始终归一化为全 4 平台对象（模板非空绑定依赖此不变量）
   default_platform_quotas: DefaultPlatformQuotasMap;
 };
@@ -8088,6 +8199,18 @@ const form = reactive<SettingsForm>({
   // 分组隔离
   allow_ungrouped_key_scheduling: false,
   openai_advanced_scheduler_enabled: false,
+  openai_advanced_scheduler_sticky_weighted_enabled: false,
+  openai_advanced_scheduler_subscription_priority_enabled: false,
+  openai_advanced_scheduler_lb_top_k: "",
+  openai_advanced_scheduler_weight_priority: "",
+  openai_advanced_scheduler_weight_load: "",
+  openai_advanced_scheduler_weight_queue: "",
+  openai_advanced_scheduler_weight_error_rate: "",
+  openai_advanced_scheduler_weight_ttft: "",
+  openai_advanced_scheduler_weight_reset: "",
+  openai_advanced_scheduler_weight_quota_headroom: "",
+  openai_advanced_scheduler_weight_previous_response: "",
+  openai_advanced_scheduler_weight_session_sticky: "",
   // Gateway forwarding behavior
   enable_fingerprint_unification: true,
   enable_metadata_passthrough: false,
@@ -8127,6 +8250,143 @@ const form = reactive<SettingsForm>({
   usage_interaction_store_raw_enabled: false,
   usage_interaction_retention_days: 7,
 });
+
+type OpenAIAdvancedSchedulerOverrideKey =
+  | "openai_advanced_scheduler_lb_top_k"
+  | "openai_advanced_scheduler_weight_priority"
+  | "openai_advanced_scheduler_weight_load"
+  | "openai_advanced_scheduler_weight_queue"
+  | "openai_advanced_scheduler_weight_error_rate"
+  | "openai_advanced_scheduler_weight_ttft"
+  | "openai_advanced_scheduler_weight_reset"
+  | "openai_advanced_scheduler_weight_quota_headroom"
+  | "openai_advanced_scheduler_weight_previous_response"
+  | "openai_advanced_scheduler_weight_session_sticky";
+
+type OpenAIAdvancedSchedulerEffectiveKey =
+  | "openai_advanced_scheduler_effective_lb_top_k"
+  | "openai_advanced_scheduler_effective_weight_priority"
+  | "openai_advanced_scheduler_effective_weight_load"
+  | "openai_advanced_scheduler_effective_weight_queue"
+  | "openai_advanced_scheduler_effective_weight_error_rate"
+  | "openai_advanced_scheduler_effective_weight_ttft"
+  | "openai_advanced_scheduler_effective_weight_reset"
+  | "openai_advanced_scheduler_effective_weight_quota_headroom"
+  | "openai_advanced_scheduler_effective_weight_previous_response"
+  | "openai_advanced_scheduler_effective_weight_session_sticky";
+
+const openAIAdvancedSchedulerWeightFields = computed<
+  Array<{
+    key: OpenAIAdvancedSchedulerOverrideKey;
+    label: string;
+    placeholder: string;
+  }>
+>(() => {
+  const placeholder = (
+    effectiveKey: OpenAIAdvancedSchedulerEffectiveKey,
+    fallbackValue: string,
+  ) => {
+    const effectiveValue = String(
+      (form as Record<string, unknown>)[effectiveKey] ?? "",
+    ).trim();
+    return t("admin.settings.openaiExperimentalScheduler.defaultPlaceholder", {
+      value: effectiveValue || fallbackValue,
+    });
+  };
+
+  return [
+    {
+      key: "openai_advanced_scheduler_lb_top_k",
+      label: t("admin.settings.openaiExperimentalScheduler.topKLabel"),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_lb_top_k",
+        "7",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_priority",
+      label: t("admin.settings.openaiExperimentalScheduler.priorityWeight"),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_priority",
+        "1",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_load",
+      label: t("admin.settings.openaiExperimentalScheduler.loadWeight"),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_load",
+        "1",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_queue",
+      label: t("admin.settings.openaiExperimentalScheduler.queueWeight"),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_queue",
+        "0.7",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_error_rate",
+      label: t("admin.settings.openaiExperimentalScheduler.errorRateWeight"),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_error_rate",
+        "0.8",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_ttft",
+      label: t("admin.settings.openaiExperimentalScheduler.ttftWeight"),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_ttft",
+        "0.5",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_reset",
+      label: t("admin.settings.openaiExperimentalScheduler.resetWeight"),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_reset",
+        "0",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_quota_headroom",
+      label: t(
+        "admin.settings.openaiExperimentalScheduler.quotaHeadroomWeight",
+      ),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_quota_headroom",
+        "0",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_previous_response",
+      label: t(
+        "admin.settings.openaiExperimentalScheduler.previousResponseWeight",
+      ),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_previous_response",
+        "5",
+      ),
+    },
+    {
+      key: "openai_advanced_scheduler_weight_session_sticky",
+      label: t(
+        "admin.settings.openaiExperimentalScheduler.sessionStickyWeight",
+      ),
+      placeholder: placeholder(
+        "openai_advanced_scheduler_effective_weight_session_sticky",
+        "3",
+      ),
+    },
+  ];
+});
+
+function normalizeOpenAIAdvancedSchedulerOverride(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 const authSourceDefaults = reactive<AuthSourceDefaultsState>(
   buildAuthSourceDefaultsState({}),
@@ -9356,6 +9616,50 @@ async function saveSettings() {
         form.payment_cancel_rate_limit_window_mode,
       payment_alipay_force_qrcode: form.payment_alipay_force_qrcode,
       openai_advanced_scheduler_enabled: form.openai_advanced_scheduler_enabled,
+      openai_advanced_scheduler_sticky_weighted_enabled:
+        form.openai_advanced_scheduler_sticky_weighted_enabled,
+      openai_advanced_scheduler_subscription_priority_enabled:
+        form.openai_advanced_scheduler_subscription_priority_enabled,
+      openai_advanced_scheduler_lb_top_k:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_lb_top_k,
+        ),
+      openai_advanced_scheduler_weight_priority:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_priority,
+        ),
+      openai_advanced_scheduler_weight_load:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_load,
+        ),
+      openai_advanced_scheduler_weight_queue:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_queue,
+        ),
+      openai_advanced_scheduler_weight_error_rate:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_error_rate,
+        ),
+      openai_advanced_scheduler_weight_ttft:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_ttft,
+        ),
+      openai_advanced_scheduler_weight_reset:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_reset,
+        ),
+      openai_advanced_scheduler_weight_quota_headroom:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_quota_headroom,
+        ),
+      openai_advanced_scheduler_weight_previous_response:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_previous_response,
+        ),
+      openai_advanced_scheduler_weight_session_sticky:
+        normalizeOpenAIAdvancedSchedulerOverride(
+          form.openai_advanced_scheduler_weight_session_sticky,
+        ),
       // 余额、订阅到期与账号限额通知
       balance_low_notify_enabled: form.balance_low_notify_enabled,
       balance_low_notify_threshold:
