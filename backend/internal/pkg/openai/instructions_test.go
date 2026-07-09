@@ -45,3 +45,27 @@ func TestCodexBaseInstructionsForModel(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultModelsContainsGPT56Models(t *testing.T) {
+	models := map[string]Model{}
+	for _, model := range DefaultModels {
+		models[model.ID] = model
+	}
+
+	for _, tc := range []struct {
+		id          string
+		displayName string
+	}{
+		{"gpt-5.6-sol", "GPT-5.6 Sol"},
+		{"gpt-5.6-terra", "GPT-5.6 Terra"},
+		{"gpt-5.6-luna", "GPT-5.6 Luna"},
+	} {
+		model, ok := models[tc.id]
+		if !ok {
+			t.Fatalf("DefaultModels missing %q", tc.id)
+		}
+		if model.DisplayName != tc.displayName {
+			t.Fatalf("DefaultModels[%q].DisplayName = %q, want %q", tc.id, model.DisplayName, tc.displayName)
+		}
+	}
+}

@@ -104,6 +104,15 @@ func TestResolveOpenAIForwardModel(t *testing.T) {
 			expectedModel:      "gpt-5.5-pro",
 		},
 		{
+			name: "preserves gpt-5.6 sol instead of group default",
+			account: &Account{
+				Credentials: map[string]any{},
+			},
+			requestedModel:     "gpt-5.6-sol",
+			defaultMappedModel: "gpt-5.4",
+			expectedModel:      "gpt-5.6-sol",
+		},
+		{
 			name: "preserves compact-spelled gpt5.5 instead of group default",
 			account: &Account{
 				Credentials: map[string]any{},
@@ -234,6 +243,9 @@ func TestNormalizeCodexModel(t *testing.T) {
 		"gpt-image-2":               "gpt-image-2",
 		"gpt-5.4-nano":              "gpt-5.4-nano",
 		"gpt-5.4-nano-high":         "gpt-5.4-nano",
+		"gpt-5.6-sol":               "gpt-5.6-sol",
+		"gpt-5.6-terra-high":        "gpt-5.6-terra",
+		"openai/gpt5.6-luna":        "gpt-5.6-luna",
 		"gpt6":                      "gpt6",
 		"claude-opus-4-6":           "claude-opus-4-6",
 	}
@@ -275,6 +287,12 @@ func TestNormalizeOpenAIModelForUpstream(t *testing.T) {
 			account: &Account{Type: AccountTypeOAuth},
 			model:   "openai/gpt-5.5-pro",
 			want:    "gpt-5.5-pro",
+		},
+		{
+			name:    "oauth preserves GPT-5.6 Luna model",
+			account: &Account{Type: AccountTypeOAuth},
+			model:   "openai/gpt5.6-luna",
+			want:    "gpt-5.6-luna",
 		},
 		{
 			name:    "oauth preserves codex auto review model",
@@ -329,6 +347,20 @@ func TestUsageBillingModelCandidatesPreserveGPT55ProModel(t *testing.T) {
 	for i := range expected {
 		if candidates[i] != expected[i] {
 			t.Fatalf("usageBillingModelCandidates(openai/gpt-5.5-pro) = %#v, want %#v", candidates, expected)
+		}
+	}
+}
+
+func TestUsageBillingModelCandidatesPreserveGPT56Model(t *testing.T) {
+	candidates := usageBillingModelCandidates("openai/gpt5.6-terra")
+
+	expected := []string{"openai/gpt5.6-terra", "gpt-5.6-terra"}
+	if len(candidates) != len(expected) {
+		t.Fatalf("usageBillingModelCandidates(openai/gpt5.6-terra) = %#v, want %#v", candidates, expected)
+	}
+	for i := range expected {
+		if candidates[i] != expected[i] {
+			t.Fatalf("usageBillingModelCandidates(openai/gpt5.6-terra) = %#v, want %#v", candidates, expected)
 		}
 	}
 }
