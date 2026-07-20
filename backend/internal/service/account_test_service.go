@@ -851,7 +851,6 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 	req.Header.Set("OpenAI-Beta", "responses=experimental")
 	req.Header.Set("Originator", "codex_cli_rs")
 	req.Header.Set("User-Agent", codexCLIUserAgent)
-	req.Header.Set("Version", codexCLIVersion)
 	probeSessionID := compactProbeSessionID(account.ID)
 	req.Header.Set("Session_ID", probeSessionID)
 	req.Header.Set("Conversation_ID", probeSessionID)
@@ -862,6 +861,7 @@ func (s *AccountTestService) testOpenAICompactConnection(c *gin.Context, account
 	}
 
 	account.ApplyHeaderOverrides(req.Header)
+	req.Header.Set("Version", resolveOpenAICompactCodexVersion(s.cfg, ""))
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {

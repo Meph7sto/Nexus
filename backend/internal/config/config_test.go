@@ -201,6 +201,31 @@ func TestLoadOpenAICompactModelFromEnv(t *testing.T) {
 	require.Equal(t, "gpt-5.3-codex", cfg.Gateway.OpenAICompactModel)
 }
 
+func TestLoadDefaultOpenAICompactFallbackVersion(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "0.145.0-alpha.18", cfg.Gateway.OpenAICompactFallbackVersion)
+}
+
+func TestLoadOpenAICompactFallbackVersionFromEnv(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_OPENAI_COMPACT_FALLBACK_VERSION", "0.146.0")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "0.146.0", cfg.Gateway.OpenAICompactFallbackVersion)
+}
+
+func TestLoadRejectsInvalidOpenAICompactFallbackVersion(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("GATEWAY_OPENAI_COMPACT_FALLBACK_VERSION", "not-a-version")
+
+	_, err := Load()
+	require.ErrorContains(t, err, "gateway.openai_compact_fallback_version must be a valid Codex version")
+}
+
 func TestLoadDefaultOpenAIHTTP2Enabled(t *testing.T) {
 	resetViperWithJWTSecret(t)
 

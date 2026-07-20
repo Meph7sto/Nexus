@@ -350,9 +350,6 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 		clientConversationID := strings.TrimSpace(req.Header.Get("conversation_id"))
 		if isOpenAIResponsesCompactPath(c) {
 			req.Header.Set("accept", "application/json")
-			if req.Header.Get("version") == "" {
-				req.Header.Set("version", codexCLIVersion)
-			}
 			if clientSessionID == "" {
 				clientSessionID = resolveOpenAICompactSessionID(c)
 			}
@@ -402,6 +399,13 @@ func (s *OpenAIGatewayService) buildUpstreamRequestOpenAIPassthrough(
 	}
 
 	account.ApplyHeaderOverrides(req.Header)
+	if account.Type == AccountTypeOAuth && isOpenAIResponsesCompactPath(c) {
+		userAgent := ""
+		if c != nil {
+			userAgent = c.GetHeader("User-Agent")
+		}
+		req.Header.Set("version", resolveOpenAICompactCodexVersion(s.cfg, userAgent))
+	}
 
 	return req, nil
 }

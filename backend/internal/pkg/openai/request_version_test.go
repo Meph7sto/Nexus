@@ -30,3 +30,26 @@ func TestParseCodexEngineVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestParseOfficialCodexClientVersion(t *testing.T) {
+	cases := []struct {
+		name    string
+		ua      string
+		wantVer string
+		wantOK  bool
+	}{
+		{"vscode prerelease is preserved", "codex_vscode/0.145.0-alpha.18", "0.145.0-alpha.18", true},
+		{"cli stable", "codex_cli_rs/0.145.0 (Ubuntu 22.4.0; x86_64) xterm", "0.145.0", true},
+		{"non official is rejected", "curl/0.145.0", "", false},
+		{"malformed official version is rejected", "codex_vscode/0.145", "", false},
+		{"empty is rejected", "", "", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ver, ok := ParseOfficialCodexClientVersion(tc.ua)
+			require.Equal(t, tc.wantOK, ok)
+			require.Equal(t, tc.wantVer, ver)
+		})
+	}
+}

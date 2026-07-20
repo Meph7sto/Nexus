@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Wei-Shaw/nexus/internal/pkg/openai"
 	"github.com/spf13/viper"
 )
 
@@ -57,6 +58,10 @@ const (
 // 128 MB 可容纳 2-3 张 4K PNG（base64 膨胀 33%，单张 4K PNG 最坏约 67MB base64）。
 // 可通过 gateway.upstream_response_read_max_bytes 配置项覆盖。
 const DefaultUpstreamResponseReadMaxBytes int64 = 128 * 1024 * 1024
+
+// DefaultOpenAICompactFallbackVersion is used when a compact request does not
+// carry a strictly recognized official Codex User-Agent.
+const DefaultOpenAICompactFallbackVersion = "0.145.0-alpha.18"
 
 type Config struct {
 	Server                  ServerConfig                  `mapstructure:"server"`
@@ -724,6 +729,9 @@ type GatewayConfig struct {
 	// OpenAICompactModel: /responses/compact 上游使用的模型。
 	// compact 端点支持模型滞后于普通 /responses 时，可用该配置降级规避上游错误。
 	OpenAICompactModel string `mapstructure:"openai_compact_model"`
+	// OpenAICompactFallbackVersion: 无法从可信官方 Codex User-Agent 解析版本时，
+	// /responses/compact 上游 Version 请求头使用的版本。可通过 YAML 或环境变量配置。
+	OpenAICompactFallbackVersion string `mapstructure:"openai_compact_fallback_version"`
 	// OpenAIWS: OpenAI Responses WebSocket 配置（默认开启，可按需回滚到 HTTP）
 	OpenAIWS GatewayOpenAIWSConfig `mapstructure:"openai_ws"`
 	// OpenAIScheduler: OpenAI 高级调度器粘性逃逸配置
@@ -1495,6 +1503,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	cfg.Log.StacktraceLevel = strings.ToLower(strings.TrimSpace(cfg.Log.StacktraceLevel))
 	cfg.Log.Output.FilePath = strings.TrimSpace(cfg.Log.Output.FilePath)
 	cfg.Gateway.ForcedCodexInstructionsTemplateFile = strings.TrimSpace(cfg.Gateway.ForcedCodexInstructionsTemplateFile)
+	cfg.Gateway.OpenAICompactFallbackVersion = strings.TrimSpace(cfg.Gateway.OpenAICompactFallbackVersion)
 	if cfg.Gateway.ForcedCodexInstructionsTemplateFile != "" {
 		content, err := os.ReadFile(cfg.Gateway.ForcedCodexInstructionsTemplateFile)
 		if err != nil {
@@ -1857,6 +1866,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.codex_image_generation_bridge_enabled", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
 	viper.SetDefault("gateway.openai_compact_model", "gpt-5.4")
+	viper.SetDefault("gateway.openai_compact_fallback_version", DefaultOpenAICompactFallbackVersion)
 	// OpenAI Responses WebSocket（默认开启；可通过 force_http 紧急回滚）
 	viper.SetDefault("gateway.openai_ws.enabled", true)
 	viper.SetDefault("gateway.openai_ws.mode_router_v2_enabled", false)
@@ -2014,6 +2024,10 @@ func setDefaults() {
 }
 
 func (c *Config) Validate() error {
+	if !openai.IsValidCodexVersion(c.Gateway.OpenAICompactFallbackVersion) {
+		return fmt.Errorf("gateway.openai_compact_fallback_version must be a valid Codex version")
+	}
+
 	jwtSecret := strings.TrimSpace(c.JWT.Secret)
 	if jwtSecret == "" {
 		return fmt.Errorf("jwt.secret is required")

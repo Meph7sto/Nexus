@@ -198,6 +198,44 @@ func matchCodexClientHeaderStrictPrefixes(value string, prefixes []string) bool 
 // codexEngineVersionPattern 提取版本段开头的三段数字 X.Y.Z（忽略 -alpha 等后缀）。
 var codexEngineVersionPattern = regexp.MustCompile(`^(\d+\.\d+\.\d+)`)
 
+// codexVersionPattern validates the full Codex version token used by the
+// upstream Version header. Keep a prerelease suffix such as -alpha.18 intact.
+var codexVersionPattern = regexp.MustCompile("^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$")
+
+// IsValidCodexVersion reports whether version is a complete Codex semantic
+// version token suitable for the upstream Version header.
+func IsValidCodexVersion(version string) bool {
+	return codexVersionPattern.MatchString(strings.TrimSpace(version))
+}
+
+// ParseOfficialCodexClientVersion extracts the complete version token only
+// from a strictly recognized official Codex User-Agent. It deliberately does
+// not use Originator or a caller-provided Version header as evidence.
+func ParseOfficialCodexClientVersion(userAgent string) (string, bool) {
+	if !IsCodexOfficialClientRequestStrict(userAgent) {
+		return "", false
+	}
+
+	ua := strings.TrimSpace(userAgent)
+	slash := strings.IndexByte(ua, '/')
+	if slash < 0 {
+		return "", false
+	}
+	rest := ua[slash+1:]
+	end := len(rest)
+	for i := 0; i < len(rest); i++ {
+		if rest[i] == ' ' || rest[i] == '(' {
+			end = i
+			break
+		}
+	}
+	version := strings.TrimSpace(rest[:end])
+	if !IsValidCodexVersion(version) {
+		return "", false
+	}
+	return version, true
+}
+
 // ParseCodexEngineVersion 从 codex-rs 形态 UA 取引擎版本：
 // `{originator}/{X.Y.Z} (...)`，第一个 '/' 后、首个空格或 '(' 前的三段版本。
 // 该版本是 codex-rs CARGO_PKG_VERSION（引擎版本，CLI/app-server 一致）。

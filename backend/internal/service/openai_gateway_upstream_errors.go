@@ -116,6 +116,17 @@ func isOpenAIInstructionsRequiredError(upstreamStatusCode int, upstreamMsg strin
 	return false
 }
 
+func isOpenAICodexVersionTooLowError(upstreamStatusCode int, upstreamMsg string, upstreamBody []byte) bool {
+	if upstreamStatusCode != http.StatusBadRequest {
+		return false
+	}
+
+	match := func(value string) bool {
+		return strings.Contains(strings.ToLower(strings.TrimSpace(value)), "requires a newer version of codex")
+	}
+	return match(upstreamMsg) || match(string(upstreamBody))
+}
+
 func isOpenAITransientProcessingError(upstreamStatusCode int, upstreamMsg string, upstreamBody []byte) bool {
 	if upstreamStatusCode != http.StatusBadRequest && upstreamStatusCode != http.StatusServiceUnavailable {
 		return false
@@ -315,6 +326,21 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 	}
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
 	logOpenAIInstructionsRequiredDebug(ctx, c, account, resp.StatusCode, upstreamMsg, requestBody, body)
+	if isOpenAICodexVersionTooLowError(resp.StatusCode, upstreamMsg, body) {
+		clientMsg := upstreamMsg
+		if clientMsg == "" {
+			clientMsg = "OpenAI requires a newer version of Codex. Please upgrade the app or CLI and try again."
+		}
+		MarkResponseCommitted(c)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"type":    "invalid_request_error",
+				"code":    "codex_version_too_old",
+				"message": clientMsg,
+			},
+		})
+		return nil, fmt.Errorf("openai codex version too low: %s", clientMsg)
+	}
 
 	if s.cfg != nil && s.cfg.Gateway.LogUpstreamErrorBody {
 		logger.LegacyPrintf("service.openai_gateway",

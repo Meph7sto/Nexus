@@ -887,9 +887,6 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 		apiKeyID := getAPIKeyIDFromContext(c)
 		if isOpenAIResponsesCompactPath(c) {
 			req.Header.Set("accept", "application/json")
-			if req.Header.Get("version") == "" {
-				req.Header.Set("version", codexCLIVersion)
-			}
 			compactSession := resolveOpenAICompactSessionID(c)
 			req.Header.Set("session_id", isolateOpenAISessionID(apiKeyID, compactSession))
 		} else {
@@ -926,6 +923,9 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	}
 
 	account.ApplyHeaderOverrides(req.Header)
+	if account.Type == AccountTypeOAuth && isOpenAIResponsesCompactPath(c) {
+		req.Header.Set("version", resolveOpenAICompactCodexVersion(s.cfg, c.GetHeader("User-Agent")))
+	}
 
 	return req, nil
 }
